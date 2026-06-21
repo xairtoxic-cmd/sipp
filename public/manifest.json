@@ -1,0 +1,10 @@
+{
+  "name": "Sipp — Your Dubai café map",
+  "short_name": "Sipp",
+  "description": "Discover, save, rank and share Dubai cafés.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F7F0E6",
+  "theme_color": "#F7F0E6",
+  "icons": []
+}

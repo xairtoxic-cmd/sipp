@@ -70,7 +70,7 @@ export default function AvatarCropper({ file, busy, onCancel, onDone }) {
   return (
     <div className="fixed inset-0 z-[1700] flex items-end justify-center bg-espresso/50 backdrop-blur-sm" onClick={onCancel}>
       <div
-        className="w-full max-w-[460px] animate-sheetUp rounded-t-xl3 border border-line bg-card p-5 pb-8 shadow-float"
+        className="no-scrollbar max-h-[88dvh] w-full max-w-[460px] animate-sheetUp overflow-y-auto rounded-t-xl3 border border-line bg-card p-5 pb-28 shadow-float"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-beige" />

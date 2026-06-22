@@ -74,7 +74,7 @@ function pill(ctx, text, x, y, h, font, bg, fg) {
   return w;
 }
 
-async function renderShareBlob({ cafe, fmt, tpl, scoreText, serifFam, sansFam }) {
+async function renderShareBlob({ cafe, fmt, tpl, scoreText, serifFam, sansFam, top, reviewer }) {
   const W = 1080;
   const H = fmt === "story" ? 1920 : fmt === "post" ? 1350 : 1080;
   const SCALE = 2; // supersample → crisp text + photos
@@ -109,6 +109,11 @@ async function renderShareBlob({ cafe, fmt, tpl, scoreText, serifFam, sansFam })
     ctx.fillStyle = CREAM; ctx.font = serif(600, W * 0.085);
     for (const ln of wrap(ctx, cafe.name, W - 2 * P, 2)) { ctx.fillText(ln, P, y); y += W * 0.09; }
     ctx.fillStyle = "rgba(247,240,230,0.72)"; ctx.font = sans(400, W * 0.034); ctx.fillText(meta, P, y + W * 0.005);
+    if (top?.text && fmt !== "square") {
+      let qy = y + W * 0.075;
+      ctx.fillStyle = "rgba(247,240,230,0.82)"; ctx.font = `italic 400 ${Math.round(W * 0.033)}px ${sansFam}`;
+      for (const ln of wrap(ctx, `“${top.text}” — ${reviewer?.name || "a member"}`, W - 2 * P, 4)) { ctx.fillText(ln, P, qy); qy += W * 0.044; }
+    }
     return await new Promise((r) => canvas.toBlob(r, "image/png", 0.95));
   }
 
@@ -132,6 +137,11 @@ async function renderShareBlob({ cafe, fmt, tpl, scoreText, serifFam, sansFam })
     ctx.fillStyle = BROWN; ctx.font = sans(400, W * 0.032); ctx.fillText(meta, P, y);
     let tx = P; const th = Math.round(W * 0.052), ty = y + W * 0.03;
     for (const t of tags) { tx += pill(ctx, t, tx, ty, th, sans(400, W * 0.028), "#EFE7D8", BROWN) + W * 0.018; }
+    if (top?.text && fmt === "story") {
+      let qy = ty + th + W * 0.06;
+      ctx.fillStyle = BROWN; ctx.font = `italic 400 ${Math.round(W * 0.034)}px ${sansFam}`;
+      for (const ln of wrap(ctx, `“${top.text}” — ${reviewer?.name || "a member"}`, W - 2 * P, 4)) { ctx.fillText(ln, P, qy); qy += W * 0.045; }
+    }
     return await new Promise((r) => canvas.toBlob(r, "image/png", 0.95));
   }
 
@@ -167,6 +177,22 @@ async function renderShareBlob({ cafe, fmt, tpl, scoreText, serifFam, sansFam })
   }
   ctx.font = scoreFont; ctx.fillStyle = CREAM; ctx.textAlign = "right";
   ctx.fillText(scoreText, W - P, cy); ctx.textAlign = "left";
+  // Top review quote, sitting just above the name
+  if (top?.text && fmt !== "square") {
+    const innerPad = Math.round(W * 0.035);
+    ctx.font = sans(400, W * 0.032);
+    const qlines = wrap(ctx, `“${top.text}”`, W - 2 * P - innerPad * 2, 3);
+    const qlh = Math.round(W * 0.044);
+    const boxH = innerPad * 2 + qlines.length * qlh + Math.round(W * 0.045);
+    const boxTop = cy - W * 0.085 - boxH;
+    rr(ctx, P, boxTop, W - 2 * P, boxH, Math.round(W * 0.03));
+    ctx.fillStyle = "rgba(43,33,24,0.5)"; ctx.fill();
+    let qy = boxTop + innerPad + qlh * 0.75;
+    ctx.textAlign = "left"; ctx.fillStyle = "rgba(247,240,230,0.96)"; ctx.font = sans(400, W * 0.032);
+    for (const ln of qlines) { ctx.fillText(ln, P + innerPad, qy); qy += qlh; }
+    ctx.fillStyle = GOLD; ctx.font = sans(500, W * 0.027);
+    ctx.fillText(`${reviewer?.name || "A member"} · ${Number(top.overall || 0).toFixed(1)} ★`, P + innerPad, qy + Math.round(W * 0.008));
+  }
   return await new Promise((r) => canvas.toBlob(r, "image/png", 0.95));
 }
 
@@ -322,7 +348,7 @@ export function ShareCard({ cafe, onClose }) {
       const serifFam = (serifEl && getComputedStyle(serifEl).fontFamily) || "Georgia, serif";
       const sansFam = getComputedStyle(document.body).fontFamily || "Inter, sans-serif";
       const scoreText = cafe.sippScore == null ? "New" : cafe.sippScore.toFixed(1);
-      const blob = await renderShareBlob({ cafe, fmt, tpl, scoreText, serifFam, sansFam });
+      const blob = await renderShareBlob({ cafe, fmt, tpl, scoreText, serifFam, sansFam, top, reviewer });
       if (!blob) throw new Error("render failed");
       const file = new File([blob], `sipp-${cafe.id}.png`, { type: "image/png" });
       const title = `${cafe.name} on Sipp`;

@@ -1,11 +1,161 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { categoryLabel } from "@/lib/seed";
+import { categoryLabel, isFineDining } from "@/lib/seed";
 import { getBestBookingMethod } from "@/lib/booking";
 import { useStore } from "@/lib/store";
 import { Icon } from "./Icons";
 import { CafeImage, PrimaryButton, GhostButton, useBodyScrollLock } from "./UI";
+
+// ---- Canvas share-image renderer (reliable: no DOM screenshot) ----
+const CREAM = "#F7F0E6", IVORY = "#FFF9F0", ESPRESSO = "#2B2118", GOLD = "#B9935A", BROWN = "#6b5a47";
+
+function loadImage(src) {
+  return new Promise((resolve) => {
+    if (!src) return resolve(null);
+    const im = new Image();
+    im.crossOrigin = "anonymous";
+    im.onload = () => resolve(im);
+    im.onerror = () => resolve(null);
+    im.src = src;
+  });
+}
+function rr(ctx, x, y, w, h, r) {
+  const k = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + k, y);
+  ctx.arcTo(x + w, y, x + w, y + h, k);
+  ctx.arcTo(x + w, y + h, x, y + h, k);
+  ctx.arcTo(x, y + h, x, y, k);
+  ctx.arcTo(x, y, x + w, y, k);
+  ctx.closePath();
+}
+function drawCover(ctx, img, x, y, w, h) {
+  const ir = img.width / img.height, r = w / h;
+  let sw, sh, sx, sy;
+  if (ir > r) { sh = img.height; sw = sh * r; sx = (img.width - sw) / 2; sy = 0; }
+  else { sw = img.width; sh = sw / r; sx = 0; sy = (img.height - sh) / 2; }
+  ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+}
+function gradFill(ctx, x, y, w, h) {
+  const g = ctx.createLinearGradient(x, y, x + w, y + h);
+  g.addColorStop(0, "#dcc9a8"); g.addColorStop(1, "#a9855a");
+  ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+}
+function wrap(ctx, text, maxW, max = 3) {
+  const words = String(text || "").split(/\s+/);
+  const lines = []; let line = "";
+  for (const w of words) {
+    const t = line ? line + " " + w : w;
+    if (ctx.measureText(t).width > maxW && line) { lines.push(line); line = w; }
+    else line = t;
+  }
+  if (line) lines.push(line);
+  return lines.slice(0, max);
+}
+// pills laid left→right; returns total width drawn
+function pill(ctx, text, x, y, h, font, bg, fg) {
+  ctx.font = font;
+  const padX = h * 0.42;
+  const w = ctx.measureText(text).width + padX * 2;
+  rr(ctx, x, y, w, h, h / 2); ctx.fillStyle = bg; ctx.fill();
+  ctx.fillStyle = fg; ctx.textBaseline = "middle"; ctx.textAlign = "left";
+  ctx.fillText(text, x + padX, y + h / 2 + h * 0.04);
+  return w;
+}
+
+async function renderShareBlob({ cafe, fmt, tpl, scoreText, serifFam, sansFam }) {
+  const W = 1080;
+  const H = fmt === "story" ? 1920 : fmt === "post" ? 1350 : 1080;
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  const img = await loadImage(cafe.images && cafe.images[0]);
+  const P = Math.round(W * 0.07);
+  const meta = `${categoryLabel(cafe)} · ${cafe.area}`;
+  const tags = (cafe.tags || []).slice(0, 3);
+  const serif = (wt, px) => `${wt} ${Math.round(px)}px ${serifFam}`;
+  const sans = (wt, px) => `${wt} ${Math.round(px)}px ${sansFam}`;
+
+  if (tpl === "bold") {
+    ctx.fillStyle = ESPRESSO; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = CREAM; ctx.textBaseline = "alphabetic"; ctx.textAlign = "left";
+    ctx.font = serif(600, W * 0.07); ctx.fillText("sipp", P, P + W * 0.06);
+    // round photo top-right
+    const rsz = Math.round(W * 0.15), rx = W - P - rsz, ry = P;
+    ctx.save(); ctx.beginPath(); ctx.arc(rx + rsz / 2, ry + rsz / 2, rsz / 2, 0, Math.PI * 2); ctx.clip();
+    if (img) drawCover(ctx, img, rx, ry, rsz, rsz); else gradFill(ctx, rx, ry, rsz, rsz);
+    ctx.restore();
+    ctx.lineWidth = 6; ctx.strokeStyle = GOLD; ctx.beginPath(); ctx.arc(rx + rsz / 2, ry + rsz / 2, rsz / 2, 0, Math.PI * 2); ctx.stroke();
+    // big score block
+    let y = H * (fmt === "square" ? 0.5 : 0.58);
+    ctx.fillStyle = GOLD; ctx.font = sans(600, W * 0.03); ctx.fillText("SIPP SCORE", P, y);
+    y += W * 0.32;
+    ctx.font = serif(700, scoreText.length > 3 ? W * 0.16 : W * 0.34); ctx.fillText(scoreText, P, y);
+    y += W * 0.11;
+    ctx.fillStyle = CREAM; ctx.font = serif(600, W * 0.085);
+    for (const ln of wrap(ctx, cafe.name, W - 2 * P, 2)) { ctx.fillText(ln, P, y); y += W * 0.09; }
+    ctx.fillStyle = "rgba(247,240,230,0.72)"; ctx.font = sans(400, W * 0.034); ctx.fillText(meta, P, y + W * 0.005);
+    return await new Promise((r) => canvas.toBlob(r, "image/png", 0.95));
+  }
+
+  if (tpl === "editorial") {
+    ctx.fillStyle = IVORY; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = ESPRESSO; ctx.textBaseline = "alphabetic"; ctx.textAlign = "left";
+    ctx.font = serif(600, W * 0.065); ctx.fillText("sipp", P, P + W * 0.05);
+    ctx.fillStyle = "rgba(107,90,71,0.7)"; ctx.font = sans(500, W * 0.026); ctx.textAlign = "right";
+    ctx.fillText(isFineDining(cafe) ? "DUBAI DINING" : "DUBAI CAFÉ", W - P, P + W * 0.045); ctx.textAlign = "left";
+    const fx = P, fy = Math.round(P + W * 0.1), fw = W - 2 * P;
+    const fh = fmt === "square" ? Math.round(H * 0.4) : Math.round(H * 0.52);
+    ctx.save(); rr(ctx, fx, fy, fw, fh, Math.round(W * 0.04)); ctx.clip();
+    if (img) drawCover(ctx, img, fx, fy, fw, fh); else gradFill(ctx, fx, fy, fw, fh);
+    ctx.restore();
+    let y = fy + fh + W * 0.085;
+    ctx.fillStyle = GOLD; ctx.font = serif(700, W * 0.085); ctx.textAlign = "right";
+    ctx.fillText(scoreText, W - P, y); ctx.textAlign = "left";
+    ctx.fillStyle = ESPRESSO; ctx.font = serif(600, W * 0.082);
+    const nameMaxW = W - 2 * P - ctx.measureText("  ").width - (W * 0.18);
+    for (const ln of wrap(ctx, cafe.name, nameMaxW, 2)) { ctx.fillText(ln, P, y); y += W * 0.085; }
+    ctx.fillStyle = BROWN; ctx.font = sans(400, W * 0.032); ctx.fillText(meta, P, y);
+    let tx = P; const th = Math.round(W * 0.052), ty = y + W * 0.03;
+    for (const t of tags) { tx += pill(ctx, t, tx, ty, th, sans(400, W * 0.028), "#EFE7D8", BROWN) + W * 0.018; }
+    return await new Promise((r) => canvas.toBlob(r, "image/png", 0.95));
+  }
+
+  // classic — full-bleed photo, content bottom
+  if (img) drawCover(ctx, img, 0, 0, W, H); else gradFill(ctx, 0, 0, W, H);
+  const og = ctx.createLinearGradient(0, H * 0.3, 0, H);
+  og.addColorStop(0, "rgba(43,33,24,0)"); og.addColorStop(1, "rgba(43,33,24,0.94)");
+  ctx.fillStyle = og; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = CREAM; ctx.textBaseline = "alphabetic"; ctx.textAlign = "left";
+  ctx.font = serif(600, W * 0.075); ctx.fillText("sipp", P, P + W * 0.065);
+  let cy = H - P;
+  // Open in Sipp pill
+  const ph = Math.round(W * 0.06); cy -= ph;
+  pill(ctx, "Open in Sipp", P, cy, ph, sans(500, W * 0.032), GOLD, ESPRESSO);
+  cy -= W * 0.035;
+  if (tags.length) {
+    const th = Math.round(W * 0.05); cy -= th; let tx = P;
+    for (const t of tags) { tx += pill(ctx, t, tx, cy, th, sans(400, W * 0.028), "rgba(247,240,230,0.18)", CREAM) + W * 0.015; }
+    cy -= W * 0.03;
+  }
+  ctx.textBaseline = "alphabetic"; ctx.textAlign = "left";
+  ctx.fillStyle = "rgba(247,240,230,0.9)"; ctx.font = sans(400, W * 0.033);
+  cy -= W * 0.033; ctx.fillText(meta, P, cy); cy -= W * 0.02;
+  const scoreFont = serif(700, scoreText.length > 3 ? W * 0.058 : W * 0.11);
+  const nameFont = serif(600, W * 0.086);
+  ctx.font = scoreFont; const scoreW = ctx.measureText(scoreText).width;
+  ctx.font = nameFont;
+  const nameLines = wrap(ctx, cafe.name, W - 2 * P - scoreW - W * 0.03, 3);
+  const lineH = Math.round(W * 0.088);
+  for (let i = nameLines.length - 1; i >= 0; i--) {
+    ctx.fillStyle = CREAM; ctx.font = nameFont; ctx.fillText(nameLines[i], P, cy);
+    if (i > 0) cy -= lineH;
+  }
+  ctx.font = scoreFont; ctx.fillStyle = CREAM; ctx.textAlign = "right";
+  ctx.fillText(scoreText, W - P, cy); ctx.textAlign = "left";
+  return await new Promise((r) => canvas.toBlob(r, "image/png", 0.95));
+}
 
 const FORMATS = [
   { id: "story", label: "Story 9:16", ratio: "9 / 16" },
@@ -151,11 +301,15 @@ export function ShareCard({ cafe, onClose }) {
   // Share the actual card image (the style they chose), falling back to saving
   // the image, then to sharing just the link.
   async function shareImage() {
-    if (!cardRef.current) return nativeShare();
     setSharing(true);
     try {
-      const { toBlob } = await import("html-to-image");
-      const blob = await toBlob(cardRef.current, { pixelRatio: 2.5, cacheBust: true, backgroundColor: "#FFFBF4" });
+      // Use the app's actual (hashed) font-family names so the canvas matches the UI.
+      try { await (document.fonts?.ready || Promise.resolve()); } catch {}
+      const serifEl = cardRef.current?.querySelector(".serif");
+      const serifFam = (serifEl && getComputedStyle(serifEl).fontFamily) || "Georgia, serif";
+      const sansFam = getComputedStyle(document.body).fontFamily || "Inter, sans-serif";
+      const scoreText = cafe.sippScore == null ? "New" : cafe.sippScore.toFixed(1);
+      const blob = await renderShareBlob({ cafe, fmt, tpl, scoreText, serifFam, sansFam });
       if (!blob) throw new Error("render failed");
       const file = new File([blob], `sipp-${cafe.id}.png`, { type: "image/png" });
       const title = `${cafe.name} on Sipp`;

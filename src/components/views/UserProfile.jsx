@@ -7,12 +7,24 @@ import { Avatar, GhostButton, PrimaryButton, EmptyState } from "../UI";
 import { ReviewCard } from "../ReviewCard";
 
 export default function UserProfile({ userId }) {
-  const { closeUser, following, toggleFollow, getProfile, reviews, tasteMatchWith } = useStore();
+  const { closeUser, following, toggleFollow, getProfile, reviews, tasteMatchWith, toast } = useStore();
   const { user: me } = useAuth();
   const isMe = userId === me?.id;
   const user = getProfile(userId);
   const isFollowing = following.includes(userId);
   const userReviews = reviews.filter((r) => r.user === userId);
+
+  function shareProfile() {
+    const link = typeof window !== "undefined" ? window.location.origin : "https://joinsipp.com";
+    const data = { title: `${user.name} on Sipp`, text: `Check out ${user.name} (${user.username}) on Sipp`, url: link };
+    if (typeof navigator !== "undefined" && navigator.share) {
+      navigator.share(data).catch(() => {});
+    } else if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(link).then(() => toast("Link copied ✓"), () => toast("Link copied ✓"));
+    } else {
+      toast("Link copied ✓");
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-[1500] overflow-y-auto bg-cream no-scrollbar">
@@ -52,8 +64,8 @@ export default function UserProfile({ userId }) {
                 Follow
               </PrimaryButton>
             )}
-            <GhostButton className="!px-5" onClick={closeUser}>
-              <Icon name="share" size={16} />
+            <GhostButton className="!px-5" onClick={shareProfile} aria-label="Share profile">
+              <Icon name="send" size={16} />
             </GhostButton>
           </div>
         )}

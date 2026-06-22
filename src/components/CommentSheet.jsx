@@ -62,8 +62,8 @@ export default function CommentSheet() {
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                addComment(commentReviewId, text);
+              if (e.key === "Enter" && text.trim()) {
+                addComment(commentReviewId, text.trim());
                 setText("");
               }
             }}
@@ -72,12 +72,15 @@ export default function CommentSheet() {
           />
           <button
             onClick={() => {
-              addComment(commentReviewId, text);
+              if (!text.trim()) return;
+              addComment(commentReviewId, text.trim());
               setText("");
             }}
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-espresso text-cream"
+            disabled={!text.trim()}
+            aria-label="Send comment"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-espresso text-cream transition disabled:opacity-40"
           >
-            <Icon name="share" size={18} />
+            <Icon name="send" size={18} />
           </button>
         </div>
       </div>

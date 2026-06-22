@@ -577,6 +577,21 @@ export function StoreProvider({ children }) {
     }
   }
 
+  // Fire-and-forget: ask the server to email the post's author about a like/comment.
+  // The server verifies the caller, skips self-actions, and looks up the author's email.
+  async function notifyEngagement(type, reviewId, text) {
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data?.session?.access_token;
+      if (!token) return;
+      fetch("/api/notify/engagement", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ type, reviewId, text: text || "" }),
+      }).catch(() => {});
+    } catch {}
+  }
+
   async function toggleReviewLike(reviewId) {
     if (!meId) return;
     const on = !!reviewLikes[reviewId];
@@ -588,6 +603,7 @@ export function StoreProvider({ children }) {
       await supabase.from("review_likes").insert({ user_id: meId, review_id: reviewId });
       const rev = reviews.find((r) => r.id === reviewId);
       if (rev) track(rev.cafeId, "like_review");
+      notifyEngagement("like", reviewId);
     }
   }
 
@@ -601,6 +617,7 @@ export function StoreProvider({ children }) {
     if (data) setCommentRows((c) => [...c, data]);
     const rev = reviews.find((r) => r.id === reviewId);
     if (rev) track(rev.cafeId, "comment_review");
+    notifyEngagement("comment", reviewId, text.trim());
     toast("Comment added ✓");
   }
 

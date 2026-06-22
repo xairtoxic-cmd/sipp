@@ -74,7 +74,7 @@ function pill(ctx, text, x, y, h, font, bg, fg) {
   return w;
 }
 
-async function renderShareBlob({ cafe, fmt, tpl, scoreText, serifFam, sansFam, top, reviewer }) {
+async function renderShareBlob({ cafe, fmt, tpl, scoreText, serifFam, sansFam, top, reviewer, site }) {
   const W = 1080;
   const H = fmt === "story" ? 1920 : fmt === "post" ? 1350 : 1080;
   const SCALE = 2; // supersample → crisp text + photos
@@ -114,6 +114,7 @@ async function renderShareBlob({ cafe, fmt, tpl, scoreText, serifFam, sansFam, t
       ctx.fillStyle = "rgba(247,240,230,0.82)"; ctx.font = `italic 400 ${Math.round(W * 0.033)}px ${sansFam}`;
       for (const ln of wrap(ctx, `“${top.text}” — ${reviewer?.name || "a member"}`, W - 2 * P, 4)) { ctx.fillText(ln, P, qy); qy += W * 0.044; }
     }
+    ctx.fillStyle = GOLD; ctx.font = sans(500, W * 0.03); ctx.textAlign = "left"; ctx.fillText(site, P, H - P * 0.75);
     return await new Promise((r) => canvas.toBlob(r, "image/png", 0.95));
   }
 
@@ -142,6 +143,7 @@ async function renderShareBlob({ cafe, fmt, tpl, scoreText, serifFam, sansFam, t
       ctx.fillStyle = BROWN; ctx.font = `italic 400 ${Math.round(W * 0.034)}px ${sansFam}`;
       for (const ln of wrap(ctx, `“${top.text}” — ${reviewer?.name || "a member"}`, W - 2 * P, 4)) { ctx.fillText(ln, P, qy); qy += W * 0.045; }
     }
+    ctx.fillStyle = GOLD; ctx.font = sans(600, W * 0.03); ctx.textAlign = "center"; ctx.fillText(site, W / 2, H - P * 0.75); ctx.textAlign = "left";
     return await new Promise((r) => canvas.toBlob(r, "image/png", 0.95));
   }
 
@@ -153,9 +155,13 @@ async function renderShareBlob({ cafe, fmt, tpl, scoreText, serifFam, sansFam, t
   ctx.fillStyle = CREAM; ctx.textBaseline = "alphabetic"; ctx.textAlign = "left";
   ctx.font = serif(600, W * 0.075); ctx.fillText("sipp", P, P + W * 0.065);
   let cy = H - P;
-  // Open in Sipp pill
+  // Open in Sipp pill + domain
   const ph = Math.round(W * 0.06); cy -= ph;
   pill(ctx, "Open in Sipp", P, cy, ph, sans(500, W * 0.032), GOLD, ESPRESSO);
+  ctx.fillStyle = "rgba(247,240,230,0.92)"; ctx.font = sans(500, W * 0.032);
+  ctx.textAlign = "right"; ctx.textBaseline = "middle";
+  ctx.fillText(site, W - P, cy + ph / 2 + W * 0.004);
+  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
   cy -= W * 0.035;
   if (tags.length) {
     const th = Math.round(W * 0.05); cy -= th; let tx = P;
@@ -348,7 +354,9 @@ export function ShareCard({ cafe, onClose }) {
       const serifFam = (serifEl && getComputedStyle(serifEl).fontFamily) || "Georgia, serif";
       const sansFam = getComputedStyle(document.body).fontFamily || "Inter, sans-serif";
       const scoreText = cafe.sippScore == null ? "New" : cafe.sippScore.toFixed(1);
-      const blob = await renderShareBlob({ cafe, fmt, tpl, scoreText, serifFam, sansFam, top, reviewer });
+      let site = "joinsipp.com";
+      try { site = new URL(link).host.replace(/^www\./, ""); } catch {}
+      const blob = await renderShareBlob({ cafe, fmt, tpl, scoreText, serifFam, sansFam, top, reviewer, site });
       if (!blob) throw new Error("render failed");
       const file = new File([blob], `sipp-${cafe.id}.png`, { type: "image/png" });
       const title = `${cafe.name} on Sipp`;

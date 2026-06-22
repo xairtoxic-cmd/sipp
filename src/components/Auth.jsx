@@ -109,16 +109,16 @@ export function AuthScreen() {
         <form onSubmit={verify} className="mt-8 rounded-xl3 border border-line bg-card p-5 shadow-soft">
           <h3 className="serif text-2xl text-espresso">Enter your code</h3>
           <p className="mt-1 text-sm text-brown/70">
-            We sent a 6-digit code to <span className="font-medium text-espresso">{email}</span>.
+            We sent a verification code to <span className="font-medium text-espresso">{email}</span>.
           </p>
           <input
             value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 10))}
             inputMode="numeric"
             autoComplete="one-time-code"
-            placeholder="••••••"
+            placeholder="Enter code"
             autoFocus
-            className="mt-4 w-full rounded-2xl border border-line bg-ivory px-4 py-3.5 text-center text-2xl tracking-[0.5em] text-espresso placeholder:tracking-[0.3em] placeholder:text-brown/30 focus:border-gold focus:outline-none"
+            className="mt-4 w-full rounded-2xl border border-line bg-ivory px-4 py-3.5 text-center text-2xl tracking-[0.4em] text-espresso placeholder:text-base placeholder:tracking-normal placeholder:text-brown/30 focus:border-gold focus:outline-none"
           />
           {error && <p className="mt-2 text-center text-sm text-red-700/80">{error}</p>}
           <PrimaryButton type="submit" className="mt-4 w-full !py-3.5 text-base" disabled={code.length < 6}>

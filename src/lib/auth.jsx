@@ -5,6 +5,13 @@ import { supabase, isSupabaseConfigured } from "./supabase";
 
 const AuthContext = createContext(null);
 
+// Turn an unhelpful Supabase error (empty body / "{}" / network 500) into a readable message.
+function authError(error, fallback) {
+  const m = (error?.message || "").trim();
+  if (!m || m === "{}" || error?.name === "AuthRetryableFetchError") return fallback;
+  return m;
+}
+
 function mapProfile(row, email) {
   if (!row) return null;
   return {
@@ -110,7 +117,7 @@ export function AuthProvider({ children }) {
       password,
       options: { data: { name: name.trim(), username: "@" + handle } },
     });
-    if (error) return { error: error.message };
+    if (error) return { error: authError(error, "Couldn't create your account — the email service may be temporarily unavailable. Please try again shortly.") };
     // confirmed:true → email confirmation is off and we're already signed in.
     return { ok: true, confirmed: !!data.session };
   }
@@ -119,7 +126,7 @@ export function AuthProvider({ children }) {
   async function verifySignupCode({ email, token }) {
     if (!isSupabaseConfigured) return { error: "Backend not configured." };
     const { error } = await supabase.auth.verifyOtp({ email: (email || "").trim(), token: (token || "").trim(), type: "signup" });
-    if (error) return { error: error.message };
+    if (error) return { error: authError(error, "That code didn't work — request a new one and try again.") };
     return { ok: true };
   }
 
@@ -134,7 +141,7 @@ export function AuthProvider({ children }) {
   async function signInWithPassword({ email, password }) {
     if (!isSupabaseConfigured) return { error: "Backend not configured." };
     const { error } = await supabase.auth.signInWithPassword({ email: (email || "").trim(), password });
-    if (error) return { error: error.message };
+    if (error) return { error: authError(error, "Couldn't sign in — check your email and password, or try again.") };
     return { ok: true };
   }
 

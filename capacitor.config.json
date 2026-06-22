@@ -1,0 +1,30 @@
+{
+  "appId": "com.joinsipp.app",
+  "appName": "Sipp",
+  "webDir": "mobile",
+  "backgroundColor": "#F7F0E6",
+  "server": {
+    "url": "https://joinsipp.com",
+    "cleartext": false
+  },
+  "ios": {
+    "contentInset": "always",
+    "backgroundColor": "#F7F0E6",
+    "limitsNavigationsToAppBoundDomains": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1400,
+      "launchAutoHide": false,
+      "backgroundColor": "#2B2118",
+      "showSpinner": false,
+      "iosSplashResourceName": "Splash"
+    },
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    },
+    "Keyboard": {
+      "resize": "native"
+    }
+  }
+}

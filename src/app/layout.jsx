@@ -3,6 +3,7 @@ import "leaflet/dist/leaflet.css"; // bundle Leaflet's CSS locally (no CDN depen
 import { Cormorant_Garamond, Inter } from "next/font/google";
 import { StoreProvider } from "@/lib/store";
 import { AuthProvider } from "@/lib/auth";
+import CapacitorInit from "@/components/CapacitorInit";
 
 const serif = Cormorant_Garamond({
   subsets: ["latin"],
@@ -37,6 +38,7 @@ export default function RootLayout({ children }) {
     <html lang="en" className={`${serif.variable} ${sans.variable}`}>
       <head />
       <body className="font-sans">
+        <CapacitorInit />
         <AuthProvider>
           <StoreProvider>{children}</StoreProvider>
         </AuthProvider>

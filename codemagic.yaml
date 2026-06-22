@@ -1,0 +1,57 @@
+# Codemagic CI — builds & ships the Sipp iOS app (Capacitor wrapper) from the cloud.
+# No Mac required. Configure the items marked TODO in the Codemagic UI first
+# (see IOS_APP.md for the full runbook).
+workflows:
+  ios-sipp:
+    name: Sipp iOS
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      # TODO: name of the App Store Connect API key you add under
+      # Codemagic → Teams → Integrations → Developer Portal.
+      app_store_connect: Sipp ASC Key
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.joinsipp.app
+      vars:
+        XCODE_WORKSPACE: "ios/App/App.xcworkspace"
+        XCODE_SCHEME: "App"
+        BUNDLE_ID: "com.joinsipp.app"
+      node: 20
+      xcode: 16
+      cocoapods: default
+    scripts:
+      - name: Install npm dependencies
+        script: npm ci
+      - name: Add the iOS platform (generated fresh each build)
+        script: |
+          npx cap add ios
+          npx cap sync ios
+      - name: Generate app icon & splash from /resources
+        script: npx @capacitor/assets generate --ios
+      - name: Add Info.plist permission strings
+        script: |
+          PLIST="ios/App/App/Info.plist"
+          PB=/usr/libexec/PlistBuddy
+          $PB -c "Add :NSCameraUsageDescription string 'Sipp uses your camera to add photos to your reviews.'" "$PLIST" 2>/dev/null || true
+          $PB -c "Add :NSPhotoLibraryUsageDescription string 'Sipp lets you attach photos from your library to reviews and your profile.'" "$PLIST" 2>/dev/null || true
+          $PB -c "Add :NSPhotoLibraryAddUsageDescription string 'Sipp saves share cards to your photo library.'" "$PLIST" 2>/dev/null || true
+          $PB -c "Add :NSLocationWhenInUseUsageDescription string 'Sipp uses your location to show cafés and dining near you.'" "$PLIST" 2>/dev/null || true
+      - name: Set up code signing
+        script: xcode-project use-profiles
+      - name: Set build number
+        script: |
+          cd ios/App
+          agvtool new-version -all "$BUILD_NUMBER"
+      - name: Build IPA
+        script: |
+          xcode-project build-ipa --workspace "$XCODE_WORKSPACE" --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: false

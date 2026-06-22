@@ -18,3 +18,8 @@
 *.pem
 npm-debug.log*
 .vercel
+
+# Capacitor native project (generated in CI)
+ios/
+android/
+.capacitor/

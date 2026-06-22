@@ -1,10 +1,13 @@
 {
-  "name": "Sipp — Your Dubai café map",
+  "name": "Sipp — Cafés & fine dining",
   "short_name": "Sipp",
-  "description": "Discover, save, rank and share Dubai cafés.",
+  "description": "Discover, save, rank and share cafés and fine dining through people with taste.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F7F0E6",
-  "theme_color": "#F7F0E6",
-  "icons": []
+  "theme_color": "#2B2118",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
 }

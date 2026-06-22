@@ -507,6 +507,16 @@ export function StoreProvider({ children }) {
     return supabase.storage.from("review-photos").getPublicUrl(path).data.publicUrl;
   }
 
+  // Upload a cropped avatar blob to storage and return a public URL (so it shows
+  // to everyone, not just locally as a base64 data URL).
+  async function uploadAvatar(blob) {
+    if (!meId || !blob || !isSupabaseConfigured) return null;
+    const path = `avatars/${meId}-${Date.now()}.jpg`;
+    const { error } = await supabase.storage.from("review-photos").upload(path, blob, { upsert: true, contentType: "image/jpeg" });
+    if (error) return null;
+    return supabase.storage.from("review-photos").getPublicUrl(path).data.publicUrl;
+  }
+
   async function createList({ title, desc, isPublic, cover }) {
     if (!meId) return;
     const { data } = await supabase
@@ -669,6 +679,7 @@ export function StoreProvider({ children }) {
     ranks,
     saveRank,
     uploadReviewPhoto,
+    uploadAvatar,
     lists,
     createList,
     addToList,

@@ -8,6 +8,7 @@ import { Icon } from "../Icons";
 import { Avatar, Tag, GhostButton, PrimaryButton, CafeImage, EmptyState } from "../UI";
 import { SavedRow } from "../CafeCard";
 import { LogoHeader, HeaderIconButton } from "../Chrome";
+import AvatarCropper from "../AvatarCropper";
 
 const MiniCafeMap = dynamic(() => import("../MiniCafeMap"), { ssr: false });
 
@@ -318,21 +319,33 @@ export default function Profile() {
 const ALL_CITIES = ["Dubai", "Abu Dhabi", "Sharjah", "Ajman", "Ras Al Khaimah", "Fujairah", "Umm Al Quwain", "Al Ain", "London", "Toronto", "New York", "Riyadh", "Doha", "Paris"];
 
 function EditProfileModal({ current, onSave, onClose }) {
+  const { uploadAvatar } = useStore();
   const [name, setName] = useState(current.name || "");
   const [bio, setBio] = useState(current.bio || "");
   const [avatarUrl, setAvatarUrl] = useState(current.avatarUrl || null);
   const [city, setCity] = useState(current.city || "Dubai");
+  const [cropFile, setCropFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   function pickPhoto(e) {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setAvatarUrl(reader.result);
-    reader.readAsDataURL(file);
+    if (file) setCropFile(file); // open the cropper
+    e.target.value = ""; // allow re-picking the same file
+  }
+
+  async function handleCropped(blob) {
+    setUploading(true);
+    const url = await uploadAvatar(blob);
+    setUploading(false);
+    if (url) setAvatarUrl(url);
+    setCropFile(null);
   }
 
   return (
     <div className="fixed inset-0 z-[1600] flex items-end justify-center bg-espresso/30 backdrop-blur-sm" onClick={onClose}>
+      {cropFile && (
+        <AvatarCropper file={cropFile} busy={uploading} onCancel={() => setCropFile(null)} onDone={handleCropped} />
+      )}
       <div
         className="w-full max-w-[460px] animate-sheetUp rounded-t-xl3 border border-line bg-card p-5 pb-10 shadow-float"
         onClick={(e) => e.stopPropagation()}
@@ -343,7 +356,7 @@ function EditProfileModal({ current, onSave, onClose }) {
         <div className="mt-4 flex flex-col items-center">
           <Avatar user={{ name, avatar: current.avatar, avatarUrl }} size={88} ring />
           <label className="mt-3 cursor-pointer rounded-full border border-line bg-ivory px-4 py-2 text-xs font-medium text-gold">
-            Change photo
+            {uploading ? "Uploading…" : "Change photo"}
             <input type="file" accept="image/*" onChange={pickPhoto} className="hidden" />
           </label>
           {avatarUrl && (

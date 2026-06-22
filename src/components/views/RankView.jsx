@@ -176,7 +176,7 @@ export default function RankView() {
           <div className="grid h-20 w-20 place-items-center rounded-full bg-gold text-cream shadow-float animate-pop">
             <Icon name="check" size={36} />
           </div>
-          <h1 className="mt-5 serif text-4xl text-espresso">Added to your map.</h1>
+          <h1 className="mt-5 serif text-4xl text-espresso">Rank added.</h1>
           <p className="mt-2 text-sm text-brown/70">
             {cafe.name} is now ranked <span className="text-gold">{overall.toFixed(1)}</span> in your list.
           </p>
@@ -431,7 +431,7 @@ export default function RankView() {
           </div>
 
           <PrimaryButton className="w-full !py-4 text-base" onClick={submit}>
-            {submitting ? "Posting…" : "Add to my map"}
+            {submitting ? "Posting…" : "Add rank"}
           </PrimaryButton>
         </div>
       )}

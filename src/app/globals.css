@@ -97,11 +97,143 @@ body {
   border: none !important;
   box-shadow: 0 12px 30px -18px rgba(43, 33, 24, 0.4) !important;
 }
-.sipp-pin {
-  display: grid;
-  place-items: center;
-  transition: transform 0.15s ease;
+/* Pin icon element (Leaflet positions it via inline transform — never add a
+   transform animation/transition here or pins snap to the map origin; scale the
+   .sipp-pin-inner child instead). */
+.leaflet-div-icon.sipp-pin {
+  background: transparent;
+  border: none;
 }
 .sipp-pin:hover {
-  transform: scale(1.12);
+  z-index: 1000 !important;
+}
+/* Top 10% rated places: a pulsing gold glow. Only `filter` is animated, never
+   `transform`, so Leaflet's positioning is never disturbed. */
+.sipp-pin.tier-glow {
+  z-index: 800 !important;
+  filter: drop-shadow(0 0 2px rgba(230, 180, 70, 0.9)) drop-shadow(0 0 5px rgba(230, 180, 70, 0.6));
+  animation: goldGlow 1.9s ease-in-out infinite;
+}
+@keyframes goldGlow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 2px rgba(230, 180, 70, 0.85)) drop-shadow(0 0 4px rgba(230, 180, 70, 0.5));
+  }
+  50% {
+    filter: drop-shadow(0 0 4px rgba(245, 200, 90, 1)) drop-shadow(0 0 9px rgba(230, 180, 70, 0.85));
+  }
+}
+
+/* Desktop hover: lift the pin by scaling the INNER element (no Leaflet transform
+   on it), growing from the planted tip. Only on devices with a real pointer. */
+@media (hover: hover) {
+  .sipp-pin {
+    cursor: pointer;
+  }
+  .sipp-pin-inner {
+    transform-origin: 50% 100%;
+    transition: transform 0.15s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .sipp-pin:hover .sipp-pin-inner {
+    transform: scale(1.22);
+  }
+}
+
+/* Hover preview card (Leaflet tooltip) — photo on top, details below */
+.leaflet-tooltip.sipp-tip {
+  width: 212px;
+  padding: 0;
+  background: #fffbf4;
+  border: 1px solid #eadfcb;
+  border-radius: 14px;
+  box-shadow: 0 16px 36px -18px rgba(43, 33, 24, 0.5);
+  color: #2b2118;
+  font-family: var(--font-sans), Inter, sans-serif;
+  white-space: normal;
+}
+.leaflet-tooltip.sipp-tip.leaflet-tooltip-top::before {
+  border-top-color: #fffbf4;
+}
+.sipp-tip-photo {
+  height: 110px;
+  background: linear-gradient(135deg, #dcc9a8, #a9855a);
+  border-radius: 13px 13px 0 0;
+  overflow: hidden;
+}
+.sipp-tip-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.sipp-tip-body {
+  padding: 8px 12px 10px;
+}
+.sipp-tip-name {
+  font-family: var(--font-serif), "Cormorant Garamond", Georgia, serif;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.08;
+}
+.sipp-tip-meta {
+  font-size: 10.5px;
+  color: rgba(90, 70, 53, 0.72);
+  margin-top: 2px;
+}
+.sipp-tip-score {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #b9935a;
+}
+
+/* Press feedback — any tappable element gets a gentle scale on touch */
+.tap {
+  transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.18s ease;
+}
+.tap:active {
+  transform: scale(0.96);
+}
+
+/* Cards lift slightly on hover (desktop) */
+.lift {
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease;
+}
+.lift:hover {
+  transform: translateY(-3px);
+}
+
+/* Skeleton shimmer surface */
+.shimmer-bg {
+  background: linear-gradient(90deg, #f1e7d6 0%, #fbf5ec 50%, #f1e7d6 100%);
+  background-size: 800px 100%;
+}
+
+/* Smooth view swap when switching bottom-nav tabs */
+.view-enter {
+  animation: viewEnter 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes viewEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Honour users who prefer less motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }

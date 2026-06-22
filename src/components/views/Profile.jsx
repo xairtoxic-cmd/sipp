@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
-import { CAFES, cafeById } from "@/lib/seed";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { Icon } from "../Icons";
@@ -12,7 +11,23 @@ import { LogoHeader, HeaderIconButton } from "../Chrome";
 
 const MiniCafeMap = dynamic(() => import("../MiniCafeMap"), { ssr: false });
 
-const STATUS_COLOR = { loved: "#B9935A", been: "#2B2118", want: "#8a6e4e", saved: "#C7A06A" };
+// Distinct, on-brand colours for the personal map.
+const STATUS_COLOR = { saved: "#C9A227", want: "#C2674A", been: "#2B2118", loved: "#B3415B" };
+
+const TASTE_BADGE_LABELS = {
+  Matcha: "Matcha lover", "Hidden Gems": "Hidden gem hunter", "Hidden Gem": "Hidden gem hunter",
+  "Fine Dining": "Fine dining", "Date Night": "Date night spots", Quiet: "Quiet cafés",
+  "Specialty Coffee": "Coffee lover", Brunch: "Brunch person", Dessert: "Dessert lover",
+  Minimal: "Minimalist", Luxury: "Luxury taste", Rooftop: "Rooftop fan", Waterfront: "Waterfront",
+  "Laptop Friendly": "Café worker", "Tasting Menu": "Tasting menus", Aesthetic: "Aesthetic spots",
+};
+function topTasteBadges(tasteScores = {}) {
+  return Object.entries(tasteScores)
+    .filter(([, v]) => v >= 60)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([t]) => TASTE_BADGE_LABELS[t] || t);
+}
 
 function NewListModal({ onClose }) {
   const { createList } = useStore();
@@ -76,7 +91,7 @@ const PREF_NAMES = {
 };
 
 export default function Profile() {
-  const { me, ranks, savedIds, lists, getStatus, setOpenListId, openCafe } = useStore();
+  const { me, ranks, savedIds, lists, getStatus, setOpenListId, openCafe, cafes, cafeById, tasteScores } = useStore();
   const { user, signOut, updateProfile } = useAuth();
   const [tab, setTab] = useState("Top 5");
   const [modal, setModal] = useState(false);
@@ -89,9 +104,11 @@ export default function Profile() {
   const prefs = Array.isArray(user?.prefCafe) ? user.prefCafe : user?.prefCafe ? [user.prefCafe] : [];
   const favSpot = prefs.map((p) => PREF_NAMES[p] || p).join(" · ");
   const tasteTags = user?.tasteTags?.length ? user.tasteTags : me.tasteTags;
+  // Friendly badges derived from the learned taste profile (no raw behaviour shown).
+  const tasteBadges = topTasteBadges(tasteScores);
 
   // Personal café map: one pin per café with a status (loved > been > want > saved).
-  const mapPoints = CAFES.map((c) => {
+  const mapPoints = cafes.map((c) => {
     const s = getStatus(c.id);
     const key = s.loved ? "loved" : s.been ? "been" : s.want ? "want" : s.saved ? "saved" : null;
     return key ? { id: c.id, lat: c.lat, lng: c.lng, color: STATUS_COLOR[key] } : null;
@@ -103,7 +120,7 @@ export default function Profile() {
     .sort((a, b) => b.r.overall - a.r.overall);
 
   const myLists = lists.filter((l) => l.owner === "me");
-  const savedCafes = CAFES.filter((c) => getStatus(c.id).saved);
+  const savedCafes = cafes.filter((c) => getStatus(c.id).saved);
 
   const TABS = ["Top 5", "Saved", "Lists", "Reviews"];
 
@@ -151,20 +168,32 @@ export default function Profile() {
             </span>
           ))}
         </div>
+        {tasteBadges.length > 0 && (
+          <>
+            <p className="mt-3 text-xs uppercase tracking-wider text-brown/50">Sipp learned</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {tasteBadges.map((b) => (
+                <span key={b} className="rounded-full border border-line bg-ivory px-2.5 py-1 text-[11px] font-medium text-espresso">
+                  {b}
+                </span>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {/* My café map */}
       <div className="mt-5">
         <h3 className="mb-2 px-1 serif text-2xl text-espresso">
-          My café <span className="gold-italic">map</span>
+          My taste <span className="gold-italic">map</span>
         </h3>
         <MiniCafeMap points={mapPoints} onPick={(id) => openCafe(id)} />
         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 px-1 text-[11px] text-brown/70">
           {[
-            ["Saved", "#C7A06A"],
-            ["Want to try", "#8a6e4e"],
-            ["Been here", "#2B2118"],
-            ["Loved", "#B9935A"],
+            ["Saved", STATUS_COLOR.saved],
+            ["Want to try", STATUS_COLOR.want],
+            ["Been here", STATUS_COLOR.been],
+            ["Loved", STATUS_COLOR.loved],
           ].map(([l, c]) => (
             <span key={l} className="flex items-center gap-1.5">
               <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: c }} /> {l}
@@ -258,14 +287,23 @@ export default function Profile() {
           ))}
       </div>
 
-      <button onClick={signOut} className="mx-auto mt-8 block text-sm font-medium text-brown/60">
+      {(user?.email || "").toLowerCase() === (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").toLowerCase() && (
+        <a
+          href="/admin"
+          className="mx-auto mt-8 flex w-full max-w-xs items-center justify-center gap-2 rounded-full bg-espresso px-5 py-3 text-sm font-medium text-cream shadow-card"
+        >
+          <Icon name="sliders" size={16} /> Open admin dashboard
+        </a>
+      )}
+
+      <button onClick={signOut} className="mx-auto mt-6 block text-sm font-medium text-brown/60">
         Sign out
       </button>
 
       {modal && <NewListModal onClose={() => setModal(false)} />}
       {editOpen && (
         <EditProfileModal
-          current={{ name: displayName, bio, avatarUrl: user?.avatarUrl, avatar: me.avatar }}
+          current={{ name: displayName, bio, avatarUrl: user?.avatarUrl, avatar: me.avatar, email: user?.email, city: user?.city }}
           onSave={(patch) => {
             updateProfile(patch);
             setEditOpen(false);
@@ -277,10 +315,13 @@ export default function Profile() {
   );
 }
 
+const ALL_CITIES = ["Dubai", "Abu Dhabi", "Sharjah", "Ajman", "Ras Al Khaimah", "Fujairah", "Umm Al Quwain", "Al Ain", "London", "Toronto", "New York", "Riyadh", "Doha", "Paris"];
+
 function EditProfileModal({ current, onSave, onClose }) {
   const [name, setName] = useState(current.name || "");
   const [bio, setBio] = useState(current.bio || "");
   const [avatarUrl, setAvatarUrl] = useState(current.avatarUrl || null);
+  const [city, setCity] = useState(current.city || "Dubai");
 
   function pickPhoto(e) {
     const file = e.target.files?.[0];
@@ -328,7 +369,33 @@ function EditProfileModal({ current, onSave, onClose }) {
           className="mt-1 w-full resize-none rounded-xl border border-line bg-ivory px-3 py-3 text-sm focus:border-gold focus:outline-none"
         />
 
-        <PrimaryButton className="mt-5 w-full !py-3.5" onClick={() => onSave({ name: name.trim() || current.name, bio: bio.trim(), avatarUrl })}>
+        <label className="mt-3 block text-sm text-brown/80">City</label>
+        <select
+          value={city}
+          onChange={(e) => setCity(e.target.value)}
+          className="mt-1 w-full rounded-xl border border-line bg-ivory px-3 py-3 text-sm focus:border-gold focus:outline-none"
+        >
+          {ALL_CITIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+
+        {current.email && (
+          <>
+            <label className="mt-3 block text-sm text-brown/80">Email</label>
+            <div className="mt-1 flex items-center justify-between rounded-xl border border-line bg-beige/40 px-3 py-3 text-sm text-brown/70">
+              <span className="truncate">{current.email}</span>
+              <span className="ml-2 shrink-0 text-[11px] text-brown/40">can't change</span>
+            </div>
+          </>
+        )}
+
+        <PrimaryButton
+          className="mt-5 w-full !py-3.5"
+          onClick={() => onSave({ name: name.trim() || current.name, bio: bio.trim(), avatarUrl, city })}
+        >
           Save changes
         </PrimaryButton>
       </div>

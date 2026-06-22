@@ -31,7 +31,10 @@ export function LogoHeader({ children, left, right }) {
     >
       <div className="relative flex items-center justify-center">
         {left && <div className="absolute left-0">{left}</div>}
-        <Logo />
+        {/* Sidebar already shows the brand on desktop — keep the row height, hide the duplicate logo. */}
+        <span className="lg:invisible">
+          <Logo />
+        </span>
         {right && <div className="absolute right-0">{right}</div>}
       </div>
       {children}
@@ -59,10 +62,49 @@ const TABS = [
   { id: "profile", label: "Profile", icon: "user" },
 ];
 
+// Desktop/laptop side rail (replaces the bottom bar at lg+).
+const SIDEBAR_TABS = [
+  { id: "discover", label: "Home", icon: "home" },
+  { id: "explore", label: "Discover", icon: "compass" },
+  { id: "map", label: "Map", icon: "pin" },
+  { id: "rank", label: "Rank", icon: "trophy" },
+  { id: "saved", label: "Saved", icon: "bookmark" },
+  { id: "profile", label: "Profile", icon: "user" },
+];
+
+export function Sidebar() {
+  const { tab, go } = useStore();
+  return (
+    <aside className="sticky top-0 z-[1200] hidden h-[100dvh] w-[244px] shrink-0 flex-col border-r border-line bg-cream/70 px-4 py-7 backdrop-blur-md lg:flex">
+      <div className="px-3">
+        <Logo size="text-[2.6rem]" />
+      </div>
+      <nav className="mt-10 flex flex-col gap-1.5">
+        {SIDEBAR_TABS.map((t) => {
+          const active = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => go(t.id)}
+              className={`flex items-center gap-3.5 rounded-2xl px-4 py-3 text-left transition ${
+                active ? "bg-espresso text-cream shadow-card" : "text-brown hover:bg-ivory"
+              }`}
+            >
+              <Icon name={t.icon} size={22} fill={active && t.id === "saved" ? "currentColor" : "none"} />
+              <span className={`text-[15px] ${active ? "font-semibold" : "font-medium"}`}>{t.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+      <p className="mt-auto px-3 text-[11px] text-brown/45">Cafés by day. Fine dining by night.</p>
+    </aside>
+  );
+}
+
 export function BottomNav() {
   const { tab, go } = useStore();
   return (
-    <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-[1200] flex justify-center">
+    <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-[1200] flex justify-center lg:hidden">
       <div className="pointer-events-auto mx-auto flex w-full max-w-[460px] items-end justify-around rounded-t-xl3 border border-b-0 border-line bg-cream/95 px-2 pb-[max(env(safe-area-inset-bottom),10px)] pt-2 shadow-float backdrop-blur-md">
         {TABS.map((t) => {
           const active = tab === t.id;

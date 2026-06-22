@@ -1,4 +1,5 @@
 import "./globals.css";
+import "leaflet/dist/leaflet.css"; // bundle Leaflet's CSS locally (no CDN dependency)
 import { Cormorant_Garamond, Inter } from "next/font/google";
 import { StoreProvider } from "@/lib/store";
 import { AuthProvider } from "@/lib/auth";
@@ -17,9 +18,9 @@ const sans = Inter({
 });
 
 export const metadata = {
-  title: "Sipp — Your Dubai café map",
+  title: "Sipp — Cafés & fine dining in Dubai",
   description:
-    "Discover, save, rank and share Dubai cafés. For matcha spots, brunch dates, hidden gems and everything in between.",
+    "Cafés by day. Fine dining by night. Discover, save, rank and share places through people with taste.",
   manifest: "/manifest.json",
 };
 
@@ -34,14 +35,7 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${serif.variable} ${sans.variable}`}>
-      <head>
-        <link
-          rel="stylesheet"
-          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-          crossOrigin=""
-        />
-      </head>
+      <head />
       <body className="font-sans">
         <AuthProvider>
           <StoreProvider>{children}</StoreProvider>

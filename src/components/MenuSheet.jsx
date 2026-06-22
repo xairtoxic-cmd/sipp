@@ -2,9 +2,18 @@
 
 import { menuFor } from "@/lib/seed";
 import { Icon } from "./Icons";
+import { useBodyScrollLock } from "./UI";
 
-export default function MenuSheet({ cafe, onClose }) {
-  const menu = menuFor(cafe);
+export default function MenuSheet({ cafe, menu: menuProp, onClose }) {
+  useBodyScrollLock();
+  const raw = Array.isArray(menuProp) && menuProp.length ? menuProp : menuFor(cafe);
+  // Normalise: support both { category } and { section }, guard items.
+  const menu = (Array.isArray(raw) ? raw : []).map((s, i) => ({
+    title: s.category || s.section || "Menu",
+    items: Array.isArray(s.items) ? s.items : [],
+    key: s.category || s.section || `sec-${i}`,
+  }));
+  const real = Array.isArray(menuProp) && menuProp.length > 0;
   return (
     <div className="fixed inset-0 z-[1600] flex items-end justify-center bg-espresso/40 backdrop-blur-sm" onClick={onClose}>
       <div
@@ -24,16 +33,14 @@ export default function MenuSheet({ cafe, onClose }) {
           </div>
         </div>
 
-        <div className="no-scrollbar flex-1 overflow-y-auto px-5 py-4">
+        <div className="no-scrollbar flex-1 overflow-y-auto overscroll-contain px-5 py-4">
           {menu.map((sec) => (
-            <div key={sec.category} className="mb-5">
-              <h4 className="mb-2 serif text-2xl text-espresso">
-                {sec.category}
-              </h4>
+            <div key={sec.key} className="mb-5">
+              <h4 className="mb-2 serif text-2xl text-espresso">{sec.title}</h4>
               <div className="overflow-hidden rounded-xl2 border border-line bg-card shadow-card">
                 {sec.items.map((it, i) => (
                   <div
-                    key={it.name}
+                    key={`${it.name}-${i}`}
                     className={`flex items-center justify-between px-4 py-3 ${i ? "border-t border-line" : ""}`}
                   >
                     <span className="text-sm text-espresso">{it.name}</span>
@@ -46,7 +53,7 @@ export default function MenuSheet({ cafe, onClose }) {
             </div>
           ))}
           <p className="pb-2 text-center text-[11px] text-brown/50">
-            Sample menu · prices in AED and may vary in-store.
+            {real ? "From the restaurant's website · prices in AED, may be out of date." : "Sample menu · prices in AED and may vary in-store."}
           </p>
         </div>
       </div>

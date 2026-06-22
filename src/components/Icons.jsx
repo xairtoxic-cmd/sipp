@@ -21,7 +21,7 @@ export function Icon({ name, size = 20, className = "", fill }) {
       );
     case "heart":
       return (
-        <svg {...p} fill={fill || "none"}><path d="M12 20s-7-4.35-9.5-8.5C1 8.5 2.5 5.5 5.5 5.5c2 0 3 1.2 3.5 2 .5-.8 1.5-2 3.5-2 3 0 4.5 3 3 6C19 15.65 12 20 12 20z" /></svg>
+        <svg {...p} fill={fill || "none"}><path d="M12 20.7C6.5 16.6 3.5 13.2 3.5 9.6 3.5 7.1 5.4 5.2 7.8 5.2c1.6 0 3.1.9 4.2 2.4 1.1-1.5 2.6-2.4 4.2-2.4 2.4 0 4.3 1.9 4.3 4.4 0 3.6-3 7-8.5 11.1z" /></svg>
       );
     case "bookmark":
       return (
@@ -66,6 +66,10 @@ export function Icon({ name, size = 20, className = "", fill }) {
     case "share":
       return (
         <svg {...p}><circle cx="6" cy="12" r="2.5" /><circle cx="17" cy="6" r="2.5" /><circle cx="17" cy="18" r="2.5" /><path d="M8.2 11l6.6-3.8M8.2 13l6.6 3.8" /></svg>
+      );
+    case "send":
+      return (
+        <svg {...p}><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4z" /></svg>
       );
     case "plus":
       return <svg {...p}><path d="M12 5v14M5 12h14" /></svg>;

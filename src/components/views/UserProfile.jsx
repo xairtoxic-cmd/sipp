@@ -1,17 +1,18 @@
 "use client";
 
-import { REVIEWS, USERS, tasteMatchFor } from "@/lib/seed";
 import { useStore } from "@/lib/store";
+import { useAuth } from "@/lib/auth";
 import { Icon } from "../Icons";
 import { Avatar, GhostButton, PrimaryButton, EmptyState } from "../UI";
 import { ReviewCard } from "../ReviewCard";
 
 export default function UserProfile({ userId }) {
-  const { closeUser, following, toggleFollow, me } = useStore();
-  const isMe = userId === "sara" || userId === "me";
-  const user = USERS[userId] || me;
+  const { closeUser, following, toggleFollow, getProfile, reviews, tasteMatchWith } = useStore();
+  const { user: me } = useAuth();
+  const isMe = userId === me?.id;
+  const user = getProfile(userId);
   const isFollowing = following.includes(userId);
-  const userReviews = REVIEWS.filter((r) => r.user === userId);
+  const userReviews = reviews.filter((r) => r.user === userId);
 
   return (
     <div className="fixed inset-0 z-[1500] overflow-y-auto bg-cream no-scrollbar">
@@ -31,7 +32,7 @@ export default function UserProfile({ userId }) {
           <p className="text-sm text-gold">{user.username}</p>
           {!isMe && (
             <p className="mt-2 serif text-xl text-espresso">
-              <span className="gold-italic">{tasteMatchFor(userId)}%</span> taste match
+              <span className="gold-italic">{tasteMatchWith(userId)}%</span> taste match
             </p>
           )}
           {user.taste && (

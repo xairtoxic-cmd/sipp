@@ -1,8 +1,9 @@
 "use client";
 
 import { useStore } from "@/lib/store";
+import { categoryLabel } from "@/lib/seed";
 import { Icon } from "./Icons";
-import { CafeImage, Tag } from "./UI";
+import { CafeImage, Tag, SippBadges } from "./UI";
 
 export function HeartButton({ cafeId, size = 18, className = "" }) {
   const { getStatus, toggleSave } = useStore();
@@ -36,6 +37,7 @@ export function LargeCafeCard({ cafe }) {
         <div className="absolute right-3 top-3">
           <HeartButton cafeId={cafe.id} />
         </div>
+        {(cafe.hasSippStar || cafe.isSippRated) && <SippBadges place={cafe} className="absolute left-3 top-3" />}
       </div>
       <div className="p-4">
         <h4 className="serif text-2xl leading-tight text-espresso">{cafe.name}</h4>
@@ -56,7 +58,7 @@ export function LargeCafeCard({ cafe }) {
   );
 }
 
-export function CafeCard({ cafe }) {
+export function CafeCard({ cafe, reason }) {
   const { openCafe } = useStore();
   return (
     <button
@@ -68,6 +70,7 @@ export function CafeCard({ cafe }) {
         <div className="absolute right-2.5 top-2.5">
           <HeartButton cafeId={cafe.id} size={15} />
         </div>
+        {(cafe.hasSippStar || cafe.isSippRated) && <SippBadges place={cafe} className="absolute left-2.5 top-2.5" />}
       </div>
       <div className="p-3">
         <div className="flex items-center justify-between gap-2">
@@ -77,21 +80,25 @@ export function CafeCard({ cafe }) {
           </span>
         </div>
         <p className="mt-0.5 truncate text-xs text-brown/80">{cafe.area}</p>
-        <div className="mt-2 flex flex-wrap gap-1">
-          {cafe.tags.slice(0, 2).map((t) => (
-            <Tag key={t}>{t}</Tag>
-          ))}
-        </div>
+        {reason ? (
+          <p className="mt-1.5 truncate text-[11px] font-medium text-gold">{reason}</p>
+        ) : (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {cafe.tags.slice(0, 2).map((t) => (
+              <Tag key={t}>{t}</Tag>
+            ))}
+          </div>
+        )}
       </div>
     </button>
   );
 }
 
-export function Carousel({ cafes }) {
+export function Carousel({ cafes, reasons }) {
   return (
     <div className="no-scrollbar -mx-5 flex gap-3 overflow-x-auto px-5 pb-1">
       {cafes.map((c) => (
-        <CafeCard key={c.id} cafe={c} />
+        <CafeCard key={c.id} cafe={c} reason={reasons ? reasons(c) : undefined} />
       ))}
     </div>
   );
@@ -110,7 +117,7 @@ export function SavedRow({ cafe, statusLabel }) {
           <h4 className="serif text-xl leading-tight text-espresso truncate">{cafe.name}</h4>
           <HeartButton cafeId={cafe.id} size={15} />
         </div>
-        <p className="truncate text-xs text-brown/80">{cafe.area}</p>
+        <p className="truncate text-xs text-brown/80">{categoryLabel(cafe)} · {cafe.area}</p>
         <div className="mt-1 flex items-center gap-2">
           {statusLabel && (
             <span className="rounded-full bg-gold/15 px-2 py-0.5 text-[10px] font-medium text-gold">{statusLabel}</span>

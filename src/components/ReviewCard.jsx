@@ -1,11 +1,130 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { USERS, cafeById } from "@/lib/seed";
 import { useStore } from "@/lib/store";
+import { categoryLabel } from "@/lib/seed";
 import { Icon } from "./Icons";
 import { Avatar, CafeImage, Tag } from "./UI";
 import { HeartButton } from "./CafeCard";
+
+// Great-circle distance in km between two {lat,lng} points.
+export function distanceKm(a, b) {
+  if (!a || !b || a.lat == null || b.lat == null) return null;
+  const R = 6371;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+function fmtDist(km) {
+  if (km == null) return null;
+  if (km < 1) return `${Math.round(km * 1000)} m away`;
+  if (km < 10) return `${km.toFixed(1)} km away`;
+  return `${Math.round(km)} km away`;
+}
+
+// Instagram-style, image-forward post for the Home feed.
+export function FeedPost({ review }) {
+  const {
+    getProfile, cafeById, openCafe, openUser, following, toggleFollow,
+    reviewLikes, toggleReviewLike, likeCountFor, comments, setCommentReviewId,
+    getStatus, toggleSave, openShare, userLoc,
+  } = useStore();
+  const user = getProfile(review.user);
+  const cafe = cafeById(review.cafeId);
+  if (!cafe) return null;
+  const img = review.photo || cafe.images?.[0];
+  const liked = !!reviewLikes[review.id];
+  const saved = getStatus(cafe.id).saved;
+  const isFollowing = following.includes(user.id);
+  const dist = userLoc && cafe.lat != null ? fmtDist(distanceKm(userLoc, { lat: cafe.lat, lng: cafe.lng })) : null;
+  const score = (review.overall ?? cafe.sippScore ?? 0).toFixed(1);
+  const commentCount = comments[review.id]?.length || 0;
+
+  return (
+    <article className="overflow-hidden border-y border-line bg-card animate-rise sm:rounded-3xl sm:border sm:shadow-card">
+      {/* header */}
+      <div className="flex items-center gap-3 p-3">
+        <button onClick={() => openUser(user.id)}>
+          <Avatar user={user} size={40} ring />
+        </button>
+        <button onClick={() => openUser(user.id)} className="min-w-0 flex-1 text-left">
+          <p className="serif text-base leading-tight text-espresso">{user.name}</p>
+          <p className="flex items-center gap-1 text-[11px] text-brown/60">
+            <span className="truncate">{cafe.area}</span>
+            {dist && (
+              <span className="flex shrink-0 items-center gap-0.5 text-gold">
+                <Icon name="pin" size={11} /> {dist}
+              </span>
+            )}
+          </p>
+        </button>
+        <button
+          onClick={() => toggleFollow(user.id)}
+          className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-medium transition active:scale-95 ${
+            isFollowing ? "border border-line bg-ivory text-brown" : "bg-espresso text-cream"
+          }`}
+        >
+          {isFollowing ? "Following" : "Follow"}
+        </button>
+      </div>
+
+      {/* image */}
+      <button onClick={() => openCafe(cafe.id)} className="relative block w-full">
+        <CafeImage
+          src={img}
+          alt={cafe.name}
+          seed={cafe.id}
+          query={review.photo ? undefined : `${cafe.name}, ${cafe.area}`}
+          rounded="rounded-none"
+          className="aspect-[4/5] w-full"
+        />
+        <span className="absolute left-3 top-3 rounded-2xl bg-espresso/90 px-2.5 py-1 serif text-2xl font-bold leading-none text-cream backdrop-blur-sm">
+          {score}
+        </span>
+        <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-espresso/85 via-espresso/20 to-transparent p-4 pt-12 text-left">
+          <span className="block serif text-2xl leading-tight text-cream drop-shadow">{cafe.name}</span>
+          <span className="text-xs text-cream/85">{categoryLabel(cafe)} · {cafe.area}</span>
+        </span>
+      </button>
+
+      {/* actions */}
+      <div className="flex items-center gap-5 px-4 pt-3 text-espresso">
+        <button onClick={() => toggleReviewLike(review.id)} className="flex items-center transition active:scale-90">
+          <span key={liked ? "on" : "off"} className={liked ? "animate-heartBurst" : ""}>
+            <Icon name="heart" size={24} fill={liked ? "currentColor" : "none"} className={liked ? "text-[#B3415B]" : ""} />
+          </span>
+        </button>
+        <button onClick={() => setCommentReviewId(review.id)} className="flex items-center gap-1.5 text-sm transition active:scale-90">
+          <Icon name="chat" size={23} />
+        </button>
+        <button onClick={() => openShare(cafe.id)} className="flex items-center gap-1.5 text-sm transition active:scale-90">
+          <Icon name="send" size={22} />
+        </button>
+        <button onClick={() => toggleSave(cafe.id)} className={`ml-auto transition active:scale-90 ${saved ? "text-gold" : ""}`}>
+          <Icon name="bookmark" size={23} fill={saved ? "currentColor" : "none"} />
+        </button>
+      </div>
+
+      {/* meta + caption */}
+      <div className="px-4 pb-4 pt-2">
+        {likeCountFor(review.id) > 0 && (
+          <p className="text-sm font-semibold text-espresso">{likeCountFor(review.id).toLocaleString()} likes</p>
+        )}
+        <p className="mt-0.5 text-sm leading-snug text-espresso/90">
+          <button onClick={() => openUser(user.id)} className="font-semibold">{user.name}</button> {review.text}
+        </p>
+        {commentCount > 0 && (
+          <button onClick={() => setCommentReviewId(review.id)} className="mt-1 text-xs text-brown/55">
+            View {commentCount === 1 ? "1 comment" : `all ${commentCount} comments`}
+          </button>
+        )}
+      </div>
+    </article>
+  );
+}
 
 const hashNum = (s) => {
   let h = 0;
@@ -60,6 +179,7 @@ function ScorePill({ label, value }) {
 
 function UserLine({ user, time }) {
   const { openUser } = useStore();
+  if (!user) return null;
   return (
     <button onClick={() => openUser(user.id)} className="flex items-center gap-2.5 text-left">
       <Avatar user={user} size={42} />
@@ -84,19 +204,19 @@ function ReviewActions({ review }) {
   const Item = ({ icon, label, active, onClick, fill }) => (
     <button
       onClick={onClick}
-      className={`flex items-center gap-1.5 text-xs transition active:scale-95 ${active ? "text-gold" : "text-brown/70"}`}
+      className={`flex items-center gap-1.5 text-sm font-medium transition active:scale-95 ${active ? "text-gold" : "text-brown/75"}`}
     >
-      <Icon name={icon} size={18} fill={active && fill ? "currentColor" : "none"} />
+      <Icon name={icon} size={21} fill={active && fill ? "currentColor" : "none"} />
       {label}
     </button>
   );
 
   return (
-    <div className="mt-3 flex items-center justify-between border-t border-line pt-3">
+    <div className="mt-3 flex items-center justify-between border-t border-line pt-3.5">
       <Item icon="heart" label={liked ? "Liked" : "Like"} active={liked} fill onClick={() => toggleReviewLike(review.id)} />
       <Item icon="chat" label={commentCount ? `Comment · ${commentCount}` : "Comment"} onClick={() => setCommentReviewId(review.id)} />
       <Item icon="bookmark" label={saved ? "Saved" : "Save"} active={saved} fill onClick={() => toggleSave(review.cafeId)} />
-      <Item icon="share" label="Share" onClick={() => openShare(review.cafeId)} />
+      <Item icon="send" label="Share" onClick={() => openShare(review.cafeId)} />
     </div>
   );
 }
@@ -132,25 +252,23 @@ function CafePreview({ cafe, compact = false }) {
 }
 
 export function ReviewCard({ review }) {
-  const user = USERS[review.user] || { name: "Someone", avatar: "#B9935A" };
+  const { openCafe, openUser, reviewLikes, likeCountFor, getProfile, cafeById } = useStore();
+  const user = getProfile(review.user);
   const cafe = cafeById(review.cafeId);
-  const { openCafe, openUser, reviewLikes } = useStore();
-  const mode = useTopBrightness(cafe?.images?.[0]);
+  // The reviewer's own uploaded photo takes priority over the place's stock photo.
+  const heroSrc = review.photo || cafe?.images?.[0];
+  const mode = useTopBrightness(heroSrc);
   if (!cafe) return null;
 
-  const tag = (review.tags || cafe.tags)[0];
-  const liker = Object.values(USERS).filter((u) => u.id !== review.user)[
-    hashNum(review.id) % Math.max(1, Object.values(USERS).length - 1)
-  ];
-  const baseLikes = (hashNum(review.id) % 40) + 6;
+  const tag = (review.tags && review.tags[0]) || cafe.tags[0];
   const liked = reviewLikes[review.id];
-  const likeCount = baseLikes + (liked ? 1 : 0);
+  const likeCount = likeCountFor(review.id);
 
   return (
     <article className="overflow-hidden rounded-[28px] border border-line bg-card shadow-soft">
-      {/* 1. Photo with reviewer overlay */}
+      {/* 1. Photo with reviewer overlay (uploaded photo if there is one) */}
       <div className="relative cursor-pointer" onClick={() => openCafe(cafe.id)}>
-        <CafeImage src={cafe.images[0]} alt={cafe.name} seed={cafe.id} query={`${cafe.name}, ${cafe.area}`} rounded="rounded-none" className="h-64 w-full" />
+        <CafeImage src={heroSrc} alt={cafe.name} seed={cafe.id} query={review.photo ? undefined : `${cafe.name}, ${cafe.area}`} rounded="rounded-none" className="h-80 w-full" />
 
         {mode === "dark" ? (
           <div className="absolute inset-x-0 top-0 flex items-center gap-2.5 bg-gradient-to-b from-black/55 via-black/25 to-transparent px-4 pb-6 pt-4 text-white">
@@ -189,17 +307,19 @@ export function ReviewCard({ review }) {
       </div>
 
       {/* 3. Liked by */}
-      <p className="px-4 pt-2 text-xs text-brown/70">
-        Liked by <span className="font-medium text-espresso">{liked ? "you" : liker?.name}</span> and {likeCount} others
-      </p>
+      {likeCount > 0 && (
+        <p className="px-4 pt-2 text-xs text-brown/70">
+          {liked ? "You" : "Liked"} {liked && likeCount > 1 ? `and ${likeCount - 1} others like this` : liked ? "like this" : `by ${likeCount}`}
+        </p>
+      )}
 
-      {/* 4. Comment — username on the left */}
-      <p className="px-4 pt-2 text-[15px] leading-relaxed text-espresso/90">
-        <button onClick={() => openUser(user.id)} className="font-semibold text-espresso">
-          {user.name}
-        </button>{" "}
-        {review.text}
-      </p>
+      {/* 4. Review text — reviewer name in bold, then the review */}
+      {review.text && (
+        <p className="px-4 pt-2 text-[15px] leading-relaxed text-espresso/90">
+          <button onClick={() => openUser(user.id)} className="font-semibold text-espresso">{user.name}</button>{" "}
+          {review.text}
+        </p>
+      )}
 
       {/* 5. Café + rating bottom right */}
       <div className="flex items-end justify-between gap-3 px-4 pb-4 pt-2.5">
@@ -213,15 +333,15 @@ export function ReviewCard({ review }) {
 }
 
 export function PublicReviewCard({ review }) {
-  const user = USERS[review.user] || { name: "Someone", avatar: "#B9935A" };
+  const { openUser, openCafe, following, toggleFollow, getStatus, toggleSave, getProfile, cafeById, openShare, reviewLikes, toggleReviewLike, likeCountFor, comments, setCommentReviewId } = useStore();
+  const user = getProfile(review.user);
   const cafe = cafeById(review.cafeId);
-  const { openUser, openCafe, following, toggleFollow, getStatus, toggleSave } = useStore();
   if (!cafe) return null;
   const isFollowing = following.includes(user.id);
   const saved = getStatus(cafe.id).saved;
 
   return (
-    <article className="rounded-[24px] border border-line bg-card p-3.5 shadow-card">
+    <article className="lift animate-rise rounded-[24px] border border-line bg-card p-3.5 shadow-card">
       <div className="flex items-center gap-3">
         <button onClick={() => openUser(user.id)}>
           <Avatar user={user} size={38} />
@@ -242,7 +362,7 @@ export function PublicReviewCard({ review }) {
 
       <div className="mt-3 flex gap-3">
         <button onClick={() => openCafe(cafe.id)} className="shrink-0">
-          <CafeImage src={cafe.images[0]} alt={cafe.name} seed={cafe.id} query={`${cafe.name}, ${cafe.area}`} className="h-20 w-20" />
+          <CafeImage src={review.photo || cafe.images[0]} alt={cafe.name} seed={cafe.id} query={review.photo ? undefined : `${cafe.name}, ${cafe.area}`} className="h-20 w-20" />
         </button>
         <div className="min-w-0 flex-1">
           <button onClick={() => openCafe(cafe.id)} className="block text-left">
@@ -253,15 +373,28 @@ export function PublicReviewCard({ review }) {
         </div>
       </div>
 
+      <span className="mt-3 inline-block rounded-full bg-gold/12 px-2.5 py-1 text-[11px] font-medium text-gold">
+        {user.name} rated it {review.overall.toFixed(1)}
+      </span>
+
       <div className="mt-3 flex items-center justify-between border-t border-line pt-2.5">
-        <span className="rounded-full bg-gold/12 px-2.5 py-1 text-[11px] font-medium text-gold">
-          {user.name} rated it {review.overall.toFixed(1)}
-        </span>
         <button
-          onClick={() => toggleSave(cafe.id)}
-          className={`flex items-center gap-1.5 text-xs ${saved ? "text-gold" : "text-brown/70"}`}
+          onClick={() => toggleReviewLike(review.id)}
+          className={`flex items-center gap-1.5 text-xs transition active:scale-95 ${reviewLikes[review.id] ? "text-gold" : "text-brown/70"}`}
         >
+          <span key={reviewLikes[review.id] ? "on" : "off"} className={reviewLikes[review.id] ? "animate-heartBurst" : ""}>
+            <Icon name="heart" size={16} fill={reviewLikes[review.id] ? "currentColor" : "none"} />
+          </span>
+          {likeCountFor(review.id) || "Like"}
+        </button>
+        <button onClick={() => setCommentReviewId(review.id)} className="flex items-center gap-1.5 text-xs text-brown/70 transition active:scale-95">
+          <Icon name="chat" size={16} /> {comments[review.id]?.length || "Comment"}
+        </button>
+        <button onClick={() => toggleSave(cafe.id)} className={`flex items-center gap-1.5 text-xs transition active:scale-95 ${saved ? "text-gold" : "text-brown/70"}`}>
           <Icon name="bookmark" size={16} fill={saved ? "currentColor" : "none"} /> {saved ? "Saved" : "Save"}
+        </button>
+        <button onClick={() => openShare(cafe.id)} className="flex items-center gap-1.5 text-xs text-brown/70 transition active:scale-95">
+          <Icon name="share" size={16} /> Share
         </button>
       </div>
     </article>

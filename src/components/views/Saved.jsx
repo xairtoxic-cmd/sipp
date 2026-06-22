@@ -1,21 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { CAFES, cafeById } from "@/lib/seed";
 import { useStore } from "@/lib/store";
 import { Icon } from "../Icons";
 import { Chip, EmptyState, CafeImage } from "../UI";
 import { SavedRow } from "../CafeCard";
 import { LogoHeader } from "../Chrome";
 
-const TABS = ["All", "Cafés", "Lists", "Want to Try", "Been Here", "Loved"];
+const TABS = ["All", "Cafés", "Fine Dining", "Lists", "Want to Try", "Been Here"];
 
 export default function Saved() {
-  const { saves, lists, getStatus, go, setOpenListId } = useStore();
+  const { saves, lists, getStatus, go, setOpenListId, cafes, cafeById } = useStore();
   const [tab, setTab] = useState("All");
 
-  const flagged = (flag) => CAFES.filter((c) => getStatus(c.id)[flag]);
-  const anySaved = CAFES.filter((c) => {
+  const flagged = (flag) => cafes.filter((c) => getStatus(c.id)[flag]);
+  const anySaved = cafes.filter((c) => {
     const s = getStatus(c.id);
     return s.saved || s.liked || s.want || s.been || s.loved;
   });
@@ -69,10 +68,10 @@ export default function Saved() {
   } else {
     let list;
     if (tab === "All") list = anySaved;
-    else if (tab === "Cafés") list = flagged("saved");
+    else if (tab === "Cafés") list = flagged("saved").filter((c) => c.category !== "fine_dining");
+    else if (tab === "Fine Dining") list = flagged("saved").filter((c) => c.category === "fine_dining");
     else if (tab === "Want to Try") list = flagged("want");
     else if (tab === "Been Here") list = flagged("been");
-    else if (tab === "Loved") list = flagged("loved");
     else list = anySaved;
 
     body =

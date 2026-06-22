@@ -502,29 +502,103 @@ const AMENITY_POOL = [
   "Shisha", "Live Music", "Books", "Rooftop", "Power Outlets", "Quiet", "Free WiFi",
 ];
 
-function featuresFor(c) {
+export function featuresFor(c) {
   let h = 0;
-  for (const ch of c.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  for (const ch of String(c.id)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   const n = 2 + (h % 3); // 2–4 amenities
   const amenities = [];
   for (let k = 0; k < n; k++) amenities.push(AMENITY_POOL[(h + k * 5) % AMENITY_POOL.length]);
-  return Array.from(new Set([...c.tags, ...amenities]));
+  return Array.from(new Set([...(c.tags || []), ...amenities]));
 }
 
-export const CAFES = [...DETAILED_CAFES, ...expandCafes(RAW_CAFES)].map((c) => ({
+// ---- Fine dining / premium restaurants (curated, real Dubai spots) ----
+const FD_IMG = [
+  "1517248135467-4c7edcad34c4", "1414235077428-338989a2e8c0", "1550966871-3ed3cdb5ed0c",
+  "1559339352-11d035aa65de", "1424847651672-bf20a4b0982b", "1540189549336-e6e99c3679fe",
+  "1551218808-94e220e084d2", "1466978913421-dad2ebd01d17",
+];
+const RAW_FINE = [
+  { name: "Trèsind Studio", area: "Palm Jumeirah", lat: 25.101, lng: 55.117, tags: ["Fine Dining", "Tasting Menu", "Luxury", "Chef's Menu", "Michelin Style"], rating: 4.9, reviews: 640, price: 4, blurb: "Dubai's celebrated tasting-menu destination — a theatrical journey through modern Indian gastronomy." },
+  { name: "Pierchic", area: "Umm Suqeim", lat: 25.133, lng: 55.184, tags: ["Fine Dining", "Waterfront", "Date Night", "Elegant", "Romantic"], rating: 4.7, reviews: 1900, price: 4, blurb: "An over-water seafood institution at the end of a pier — the city's most romantic dinner view." },
+  { name: "Ossiano", area: "Palm Jumeirah", lat: 25.13, lng: 55.117, tags: ["Fine Dining", "Tasting Menu", "Luxury", "Michelin Style", "Romantic"], rating: 4.8, reviews: 720, price: 4, blurb: "Underwater Michelin-starred seafood — dine beside the aquarium at Atlantis." },
+  { name: "Zuma", area: "DIFC", lat: 25.214, lng: 55.281, tags: ["Fine Dining", "Business Dinner", "Elegant", "Great Service", "Premium"], rating: 4.7, reviews: 3200, price: 4, blurb: "The DIFC power-dinner classic — contemporary Japanese izakaya done impeccably." },
+  { name: "La Petite Maison", area: "DIFC", lat: 25.213, lng: 55.28, tags: ["Fine Dining", "Business Dinner", "Elegant", "Date Night", "Premium"], rating: 4.7, reviews: 2600, price: 4, blurb: "Effortless French-Mediterranean (Niçoise) cooking and a buzzing, see-and-be-seen room." },
+  { name: "Gaia", area: "DIFC", lat: 25.212, lng: 55.28, tags: ["Fine Dining", "Date Night", "Elegant", "Premium", "Presentation"], rating: 4.6, reviews: 2400, price: 4, blurb: "Refined Greek by Izu Ani — coastal cooking, beautiful plating, and a glamorous crowd." },
+  { name: "COYA", area: "Jumeirah", lat: 25.196, lng: 55.243, tags: ["Fine Dining", "Date Night", "Luxury", "Romantic", "Great Service"], rating: 4.7, reviews: 2100, price: 4, blurb: "Peruvian flavours, pisco, and a sultry candlelit room at the Four Seasons." },
+  { name: "Nobu", area: "Palm Jumeirah", lat: 25.1305, lng: 55.117, tags: ["Fine Dining", "Business Dinner", "Luxury", "Premium", "Date Night"], rating: 4.6, reviews: 2800, price: 4, blurb: "The legendary Japanese-Peruvian menu — black cod and signature precision at Atlantis." },
+  { name: "STAY by Yannick Alléno", area: "Palm Jumeirah", lat: 25.099, lng: 55.146, tags: ["Fine Dining", "Tasting Menu", "Michelin Style", "Anniversary", "Presentation"], rating: 4.8, reviews: 480, price: 4, blurb: "Three-Michelin-chef French haute cuisine and the famous dessert library at One&Only." },
+  { name: "Il Ristorante - Niko Romito", area: "Jumeirah", lat: 25.196, lng: 55.234, tags: ["Fine Dining", "Date Night", "Elegant", "Premium", "Romantic"], rating: 4.7, reviews: 620, price: 4, blurb: "Pared-back, Michelin-pedigree Italian inside Bvlgari Resort — quietly perfect." },
+];
+function expandFine(list) {
+  return list.map((c, i) => {
+    const sippScore = Math.min(9.7, Math.round((c.rating * 1.9 + 0.3) * 10) / 10);
+    const images = [FD_IMG[i % FD_IMG.length], FD_IMG[(i + 3) % FD_IMG.length], FD_IMG[(i + 5) % FD_IMG.length]].map(img);
+    const shortArea = c.area.split(",")[0];
+    return {
+      id: `${slug(c.name)}-fd`,
+      name: c.name,
+      area: c.area,
+      emirate: "Dubai",
+      lat: c.lat,
+      lng: c.lng,
+      rating: c.rating,
+      reviews: c.reviews,
+      sippScore,
+      price: c.price,
+      tags: c.tags,
+      category: "fine_dining",
+      openNow: true,
+      hours: "18:00 – 24:00",
+      address: `${c.area}, Dubai`,
+      phone: "",
+      website: slug(c.name).replace(/-/g, "") + ".ae",
+      loved: c.tags.slice(0, 3).map((t) => `Great ${t.toLowerCase()}`),
+      blurb: c.blurb,
+      images,
+      activity: `Loved in ${shortArea}`,
+    };
+  });
+}
+
+export const CAFES = [...DETAILED_CAFES, ...expandCafes(RAW_CAFES), ...expandFine(RAW_FINE)].map((c) => ({
   ...c,
+  category: c.category || "cafe",
   features: featuresFor(c),
 }));
 
-// Categories shown in the Discover filter (vibes + café type/amenities).
+export const categoryLabel = (c) => (c?.category === "fine_dining" ? "Fine Dining" : "Café");
+
+// Clean, short domain for display (drops protocol, www, path and tracking params).
+export function prettyDomain(url) {
+  if (!url) return "";
+  try {
+    const u = new URL(url.startsWith("http") ? url : "https://" + url);
+    return u.hostname.replace(/^www\./, "");
+  } catch {
+    return String(url).replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
+  }
+}
+export const isFineDining = (c) => c?.category === "fine_dining";
+
+// Categories shown in the Discover filter (place type + vibes).
 export const CATEGORIES = [
-  "All", "Specialty Coffee", "Matcha", "Brunch", "Dessert", "Study", "Date Night",
-  "Hidden Gems", "Minimal", "Late Night", "Outdoor Seating", "Laptop Friendly",
-  "Chess", "Board Games", "Pet Friendly", "Shisha", "Live Music", "Books", "Rooftop", "Quiet",
+  "Sipp Star", "Sipp Rated", "Community Favorites", "Cafés", "Fine Dining", "Brunch", "Dessert",
+  "Date Night", "Hidden Gems", "Luxury", "Matcha", "Specialty Coffee", "Tasting Menu", "Rooftop",
+  "Waterfront", "Business Dinner", "Outdoor Seating", "Study", "Laptop Friendly", "Minimal", "Romantic", "Elegant", "Quiet",
 ];
 
-export const cafeInCategory = (c, cat) =>
-  cat === "All" || (c.features || c.tags).some((t) => t.toLowerCase() === cat.toLowerCase());
+// True if a place matches a filter label (handles place-type labels + Sipp layer + tags/features).
+export const placeMatches = (c, cat) => {
+  if (!cat || cat === "All") return true;
+  if (cat === "Cafés" || cat === "Cafes") return c.category === "cafe";
+  if (cat === "Fine Dining") return c.category === "fine_dining";
+  if (cat === "Sipp Star") return !!c.hasSippStar;
+  if (cat === "Sipp Rated") return !!c.isSippRated;
+  if (cat === "Community Favorites") return (c.communityScore || c.sippScore || 0) >= 9;
+  return (c.features || c.tags).some((t) => t.toLowerCase() === cat.toLowerCase());
+};
+
+export const cafeInCategory = (c, cat) => placeMatches(c, cat);
 
 const hashNum = (s = "") => {
   let h = 0;
@@ -532,11 +606,20 @@ const hashNum = (s = "") => {
   return h;
 };
 
-// Vibe tags used across the app (review flow, filters, profiles).
+// Vibe tags used across the app (review flow, filters, profiles) — cafés + fine dining.
 export const VIBE_TAGS = [
+  // café
   "Aesthetic", "Quiet", "Cozy", "Minimal", "Hidden Gem", "Good Lighting", "Laptop Friendly",
-  "Date Spot", "Work Meeting", "Outdoor Seating", "Luxury", "Study Friendly", "Calm", "Matcha",
-  "Specialty Coffee", "Brunch", "Dessert", "Late Night", "Group Friendly", "Solo Coffee", "Good Vibes",
+  "Outdoor Seating", "Study Friendly", "Calm", "Matcha", "Specialty Coffee", "Brunch", "Dessert", "Solo Coffee",
+  // fine dining
+  "Fine Dining", "Luxury", "Tasting Menu", "Date Night", "Business Dinner", "Chef's Menu", "Elegant",
+  "Romantic", "Rooftop", "Waterfront", "Hotel Restaurant", "Premium", "Dressy", "Great Service", "Presentation", "Good Vibes",
+];
+
+// Occasion tags for fine dining reviews.
+export const OCCASION_TAGS = [
+  "Date Night", "Anniversary", "Birthday", "Business Dinner", "Family Dinner",
+  "Tasting Menu", "Special Occasion", "Client Dinner", "Luxury Night Out",
 ];
 
 export const BEST_TIMES = [
@@ -545,16 +628,19 @@ export const BEST_TIMES = [
 
 export const CROWD_LEVELS = ["Quiet", "Moderate", "Busy", "Very busy"];
 
-// Taste chips for onboarding + taste profile.
+// Taste chips for onboarding + taste profile (cafés + fine dining).
 export const TASTE_CHIPS = [
-  "Coffee", "Matcha", "Brunch", "Dessert", "Quiet Cafés", "Aesthetic Spots", "Laptop Friendly",
-  "Date Night", "Hidden Gems", "Luxury", "Outdoor Seating", "Study Cafés", "Late Night", "Specialty Coffee",
+  "Coffee", "Matcha", "Brunch", "Dessert", "Fine Dining", "Date Night", "Tasting Menus", "Rooftops",
+  "Waterfront", "Luxury", "Hidden Gems", "Study Spots", "Business Dinner", "Aesthetic Spots", "Quiet Places", "Outdoor Seating",
 ];
 
-// Café "personality score" — category breakdown, derived deterministically from the Sipp Score.
+// "Personality score" — adapts to the place category.
 export function personalityFor(c) {
   const h = hashNum(c.id);
   const j = (n) => Math.max(7.6, Math.min(9.8, +(c.sippScore + (((h >> (n * 3)) % 7) - 3) * 0.18).toFixed(1)));
+  if (c.category === "fine_dining") {
+    return { Food: j(0), Service: j(1), Ambience: j(2), Presentation: j(3), Value: j(4), "Date Night": j(5) };
+  }
   return { Coffee: j(0), Vibe: j(1), Service: j(2), Food: j(3), "Work-friendly": j(4), Aesthetic: j(5) };
 }
 
@@ -610,114 +696,13 @@ export const DROPS = [
   { id: "d4", cafeId: "nightjar", title: "Limited Ethiopian roast", when: "Now pouring", desc: "A single-origin micro-lot. Thirty bags, then it's gone." },
 ];
 
-export const USERS = {
-  sara: { id: "sara", name: "Sara", username: "@saraeats", avatar: "#B9935A", bio: "Matcha, brunch, hidden gems.", instagram: "@saraeats", taste: "Matcha, brunch, hidden gems", sparkle: true },
-  leen: { id: "leen", name: "Leen", username: "@leensips", avatar: "#9C7A52", bio: "Always one more flat white.", instagram: "@leensips", taste: "Jumeirah cafés, aesthetic spots" },
-  omar: { id: "omar", name: "Omar", username: "@omar.brews", avatar: "#5A4635", bio: "Filter coffee snob.", instagram: "@omar.brews", taste: "Al Quoz coffee, late-night spots" },
-  yara: { id: "yara", name: "Yara", username: "@yara.dxb", avatar: "#C7A06A", bio: "Brunch is a personality.", instagram: "@yara.dxb", taste: "Study cafés, calm spaces" },
-  ahmed: { id: "ahmed", name: "Ahmed", username: "@ahmed.pours", avatar: "#7D6244", bio: "If it's not single-origin, why bother.", instagram: "@ahmed.pours", taste: "Specialty coffee nerd" },
-  mariam: { id: "mariam", name: "Mariam", username: "@mariam.slow", avatar: "#A9855A", bio: "Evening coffee person.", instagram: "@mariam.slow", taste: "Calm evening coffee" },
-  noor: { id: "noor", name: "Noor", username: "@noor.sweet", avatar: "#C0A072", bio: "Here for the dessert.", instagram: "@noor.sweet", taste: "Desserts & aesthetics" },
-};
-
-// Social review feed. scope: "friend" (people you follow / you) or "public".
-export const REVIEWS = [
-  {
-    id: "r1", user: "sara", cafeId: "kia", scope: "friend", time: "2h",
-    text: "Finally tried Kiā in Alserkal. The vibe is calm, the interior is beautiful, and the Spanish latte was actually worth it.",
-    overall: 9.2, sub: { Vibe: 9.5, Coffee: 9.0, Service: 8.8 },
-    tags: ["Specialty Coffee", "Minimal", "Hidden Gem"],
-  },
-  {
-    id: "r2", user: "leen", cafeId: "sum-of-us", scope: "friend", time: "4h",
-    text: "SUM of Us is still one of the best brunch cafés in Dubai when you want something easy but good. Busy, but still worth saving.",
-    overall: 8.8, sub: { Vibe: 8.7, Coffee: 9.0, Service: 8.5 },
-    tags: ["Brunch", "Coffee", "Casual"],
-  },
-  {
-    id: "r3", user: "omar", cafeId: "nightjar", scope: "friend", time: "6h",
-    text: "Best coffee energy in Al Quoz. Not too fancy, just real coffee and a good crowd.",
-    overall: 9.0, sub: { Vibe: 8.8, Coffee: 9.4, Service: 8.6 },
-    tags: ["Specialty Coffee", "Al Quoz", "Cool Crowd"],
-  },
-  {
-    id: "r4", user: "yara", cafeId: "one-life", scope: "friend", time: "8h",
-    text: "Good for working, meeting friends, or grabbing a quick lunch. Very reliable spot.",
-    overall: 8.6, sub: { Vibe: 8.5, Coffee: 8.4, Service: 8.8 },
-    tags: ["Laptop Friendly", "Lunch", "Casual"],
-  },
-  {
-    id: "r5", user: "ahmed", cafeId: "espresso-lab", scope: "public", time: "3h",
-    text: "The coffee is serious here. Great for people who actually care about beans.",
-    overall: 9.1, sub: { Vibe: 8.9, Coffee: 9.4, Service: 8.7 },
-    tags: ["Specialty Coffee", "Study"],
-  },
-  {
-    id: "r6", user: "mariam", cafeId: "orto", scope: "public", time: "5h",
-    text: "Beautiful Jumeirah spot, especially for a calm evening coffee.",
-    overall: 8.9, sub: { Vibe: 9.1, Coffee: 8.6, Service: 8.8 },
-    tags: ["Outdoor Seating", "Date Night"],
-  },
-  {
-    id: "r7", user: "noor", cafeId: "bkry", scope: "public", time: "7h",
-    text: "Desserts are the reason to go. The interior is also very Sipp-worthy.",
-    overall: 9.0, sub: { Vibe: 9.0, Coffee: 8.5, Service: 8.6 },
-    tags: ["Dessert", "Hidden Gems"],
-  },
-  {
-    id: "r8", user: "ahmed", cafeId: "tom-serg", scope: "public", time: "9h",
-    text: "The warehouse classic. Still pulls a great shot and the brunch holds up.",
-    overall: 8.5, sub: { Vibe: 8.6, Coffee: 8.7, Service: 8.3 },
-    tags: ["Brunch", "Specialty Coffee"],
-  },
-];
-
-export const HOME_FILTERS = [
-  "All", "Friends", "Public", "Specialty Coffee", "Matcha", "Brunch", "Dessert", "Study", "Date Night", "Hidden Gems",
-];
-
-export const FEED_TABS = ["Following", "Dubai", "Trending", "Near You"];
-
-export const reviewsByScope = (scope) => REVIEWS.filter((r) => r.scope === scope);
-
-export const ME = {
-  id: "me",
-  name: "Sara",
-  username: "@saraeats",
-  avatar: "#B9935A",
-  bio: "Matcha, brunch, hidden gems.",
-  instagram: "@saraeats",
-  favoriteAreas: ["Jumeirah", "DIFC", "Al Quoz"],
-  tasteTags: ["Minimal", "Matcha", "Brunch", "Study Cafés"],
-  followers: 312,
-  following: 184,
-};
-
-export const FRIEND_ACTIVITY = [
-  { id: "a1", user: "leen", action: "saved", cafeId: "saya", time: "12m" },
-  { id: "a2", user: "omar", action: "is at", cafeId: "one-life", time: "38m" },
-  { id: "a3", user: "sara", action: "saved", cafeId: "nightjar", time: "1h" },
-  { id: "a4", user: "yara", action: "ranked", cafeId: "sum-of-us", time: "2h", score: 9.0 },
-  { id: "a5", user: "leen", action: "saved", cafeId: "orto", time: "3h" },
-  { id: "a6", user: "omar", action: "saved", cafeId: "boston-lane", time: "5h" },
-];
-
-export const SEED_LISTS = [
-  { id: "l1", title: "Best Matcha in Dubai", desc: "The creamiest, greenest lattes in town.", cafeIds: ["tanias", "sum-of-us", "friends-avenue"], cover: "tanias", public: true, owner: "me" },
-  { id: "l2", title: "Coffee Dates", desc: "Quiet corners for two.", cafeIds: ["kia", "saya", "orto"], cover: "saya", public: true, owner: "me" },
-  { id: "l3", title: "Study Cafés", desc: "Laptop friendly, plenty of plugs.", cafeIds: ["espresso-lab", "boston-lane", "ldc", "one-life"], cover: "espresso-lab", public: true, owner: "me" },
-  { id: "l4", title: "Hidden Gems", desc: "Worth the detour.", cafeIds: ["nightjar", "bkry", "koncrete"], cover: "nightjar", public: false, owner: "me" },
-  { id: "l5", title: "Jumeirah Favourites", desc: "My neighbourhood rotation.", cafeIds: ["orto", "ldc", "around-the-block", "koncrete"], cover: "orto", public: true, owner: "leen" },
-  { id: "l6", title: "Places I Want to Try", desc: "The list keeps growing.", cafeIds: ["arabica", "friends-avenue", "tom-serg"], cover: "arabica", public: false, owner: "me" },
-];
-
 export const FILTERS = [
   "All", "Specialty Coffee", "Matcha", "Brunch", "Dessert", "Study",
   "Date Night", "Hidden Gems", "Outdoor Seating", "Minimal", "Laptop Friendly", "Late Night",
 ];
 
 export const MAP_FILTERS = [
-  "All", "Cafés", "Matcha", "Brunch", "Dessert", "Study", "Outdoor", "Open Now", "High Rated",
+  "All", "Best for me", "Loved by friends", "Sipp Star", "Sipp Rated", "Cafés", "Fine Dining", "Brunch", "Dessert", "Date Night", "Rooftop", "Waterfront", "Open Now", "High Rated",
 ];
 
 export const cafeById = (id) => CAFES.find((c) => c.id === id);

@@ -3,7 +3,7 @@
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { AuthScreen, Onboarding } from "@/components/Auth";
-import { BottomNav, Toasts } from "@/components/Chrome";
+import { BottomNav, Toasts, Sidebar } from "@/components/Chrome";
 import Discover from "@/components/views/Discover";
 import Explore from "@/components/views/Explore";
 import MapView from "@/components/views/MapView";
@@ -17,7 +17,6 @@ import ListDetail from "@/components/views/ListDetail";
 import UserProfile from "@/components/views/UserProfile";
 import CommentSheet from "@/components/CommentSheet";
 import { ShareCard } from "@/components/ShareCard";
-import { cafeById } from "@/lib/seed";
 
 function PalmCorner() {
   return (
@@ -35,7 +34,7 @@ function PalmCorner() {
 }
 
 export default function Home() {
-  const { tab, openCafeId, openListId, openUserId, shareCafeId, closeShare } = useStore();
+  const { tab, openCafeId, openListId, openUserId, shareCafeId, closeShare, cafeById } = useStore();
   const { hydrated, isAuthed, needsOnboarding } = useAuth();
 
   const isMap = tab === "map";
@@ -52,32 +51,35 @@ export default function Home() {
   if (needsOnboarding) return <Onboarding />;
 
   return (
-    <main className="relative mx-auto min-h-[100dvh] w-full max-w-[460px] bg-cream sm:my-0 sm:shadow-float">
-      <div className="app-bg" />
-      <PalmCorner />
+    <div className="lg:flex">
+      <Sidebar />
+      <main className="relative mx-auto min-h-[100dvh] w-full max-w-[460px] bg-cream sm:my-0 sm:shadow-float lg:mx-0 lg:max-w-none lg:flex-1 lg:shadow-none">
+        <div className="app-bg" />
+        <PalmCorner />
 
-      {isMap ? (
-        <MapView />
-      ) : (
-        <div className="min-h-[100dvh]">
-          {tab === "discover" && <Discover />}
-          {tab === "explore" && <Explore />}
-          {tab === "saved" && <Saved />}
-          {tab === "rank" && <RankView />}
-          {tab === "profile" && <Profile />}
-          {tab === "social" && <Social />}
-          {tab === "lists" && <Lists />}
-        </div>
-      )}
+        {isMap ? (
+          <MapView />
+        ) : (
+          <div key={tab} className="view-enter mx-auto min-h-[100dvh] w-full max-w-[460px] lg:max-w-[1200px]">
+            {tab === "discover" && <Discover />}
+            {tab === "explore" && <Explore />}
+            {tab === "saved" && <Saved />}
+            {tab === "rank" && <RankView />}
+            {tab === "profile" && <Profile />}
+            {tab === "social" && <Social />}
+            {tab === "lists" && <Lists />}
+          </div>
+        )}
 
-      {openCafeId && <CafeProfile key={openCafeId} cafeId={openCafeId} />}
-      {openListId && <ListDetail listId={openListId} />}
-      {openUserId && <UserProfile userId={openUserId} />}
-      {shareCafeId && <ShareCard cafe={cafeById(shareCafeId)} onClose={closeShare} />}
-      <CommentSheet />
+        {openCafeId && <CafeProfile key={openCafeId} cafeId={openCafeId} />}
+        {openListId && <ListDetail listId={openListId} />}
+        {openUserId && <UserProfile userId={openUserId} />}
+        {shareCafeId && <ShareCard cafe={cafeById(shareCafeId)} onClose={closeShare} />}
+        <CommentSheet />
 
-      <BottomNav />
-      <Toasts />
-    </main>
+        <BottomNav />
+        <Toasts />
+      </main>
+    </div>
   );
 }

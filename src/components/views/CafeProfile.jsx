@@ -1,25 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CAFES, USERS, cafeById, personalityFor, bestTimeFor, crowdFor, menuFor } from "@/lib/seed";
+import { personalityFor, bestTimeFor, crowdFor, menuFor, isFineDining, prettyDomain } from "@/lib/seed";
+import { getBestBookingMethod, reservationStatus } from "@/lib/booking";
 import { useStore } from "@/lib/store";
 import { Icon } from "../Icons";
-import { Avatar, Tag, CafeImage, PrimaryButton, GhostButton, Stars } from "../UI";
+import { Avatar, Tag, CafeImage, PrimaryButton, GhostButton, Stars, SippBadges } from "../UI";
 import { CafeCard } from "../CafeCard";
 import { ShareCard } from "../ShareCard";
 import MenuSheet from "../MenuSheet";
 
 const PHOTOS_ENABLED = process.env.NEXT_PUBLIC_PLACES_PHOTOS === "1";
-
-const FRIEND_REVIEWS = [
-  { user: "leen", score: 9.0, text: "The matcha is unreal and the light in here is perfect for photos." },
-  { user: "omar", score: 8.5, text: "Filter coffee done right. Quiet enough to actually get work done." },
-];
-
-const COMMUNITY = [
-  { name: "Mariam", score: 8.8, text: "Cosy, calm and the croissants sell out fast — go early." },
-  { name: "Khalid", score: 8.2, text: "Lovely interior, service a touch slow on weekends." },
-];
 
 function ActionPill({ icon, label, active, onClick }) {
   return (
@@ -71,8 +62,11 @@ function AddToListSheet({ cafeId, onClose }) {
 }
 
 export default function CafeProfile({ cafeId }) {
-  const { closeCafe, getStatus, toggleSave, toggleWant, toggleBeen, toggleLoved, toggleNotFor, goRank, ranks } = useStore();
+  const { closeCafe, getStatus, toggleSave, toggleWant, toggleBeen, toggleLoved, toggleNotFor, goRank, ranks, reviews, getProfile, openUser, cafes, cafeById, reserve } = useStore();
   const cafe = cafeById(cafeId);
+  const cafeReviews = reviews.filter((r) => r.cafeId === cafeId);
+  const friendThoughts = cafeReviews.filter((r) => r.scope === "friend");
+  const community = cafeReviews.filter((r) => r.scope === "public");
   const [listSheet, setListSheet] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -114,14 +108,19 @@ export default function CafeProfile({ cafeId }) {
     if (dx < 0) setGallery((g) => Math.min(galleryImages.length - 1, g + 1));
     else setGallery((g) => Math.max(0, g - 1));
   }
-  const menuPreview = menuFor(cafe)[0];
+  const fine = isFineDining(cafe);
+  const bookingMethod = getBestBookingMethod(cafe);
+  const resStatus = reservationStatus(cafe);
+  const menuPreview = menuFor(cafe)[0] || { items: [] };
 
-  const similar = CAFES.filter(
-    (c) => c.id !== cafe.id && c.tags.some((t) => cafe.tags.includes(t))
-  ).slice(0, 6);
+  // Similar = same category + shared tags (prefer same city).
+  const similar = cafes
+    .filter((c) => c.id !== cafe.id && c.category === cafe.category && c.tags.some((t) => cafe.tags.includes(t)))
+    .sort((a, b) => (a.city === cafe.city ? -1 : 1) - (b.city === cafe.city ? -1 : 1))
+    .slice(0, 6);
 
   return (
-    <div className="fixed inset-0 z-[1500] animate-slideIn overflow-y-auto bg-cream no-scrollbar">
+    <div className={`fixed inset-0 z-[1500] animate-fadeJustIn bg-cream no-scrollbar ${listSheet || shareOpen || menuOpen ? "overflow-hidden" : "overflow-y-auto"}`}>
       {/* Hero */}
       <div className="relative" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         <CafeImage
@@ -198,7 +197,7 @@ export default function CafeProfile({ cafeId }) {
             <div>
               <h1 className="serif text-4xl leading-none text-espresso">{cafe.name}</h1>
               <p className="mt-1 flex items-center gap-1 text-sm text-brown/80">
-                <Icon name="pin" size={14} /> {cafe.area}
+                <Icon name="pin" size={14} /> {fine ? "Fine Dining" : "Café"} · {cafe.area}
               </p>
             </div>
             <div className="rounded-2xl border border-line bg-ivory px-3 py-2 text-center">
@@ -223,6 +222,7 @@ export default function CafeProfile({ cafeId }) {
               <Tag key={t}>{t}</Tag>
             ))}
           </div>
+          {(cafe.hasSippStar || cafe.isSippRated) && <SippBadges place={cafe} className="mt-3" />}
         </div>
 
         {/* Actions */}
@@ -235,6 +235,22 @@ export default function CafeProfile({ cafeId }) {
           <ActionPill icon="trophy" label="Rank" active={!!myRank} onClick={() => goRank(cafe.id)} />
           <ActionPill icon="list" label="Add to List" onClick={() => setListSheet(true)} />
         </div>
+
+        {/* Reserve */}
+        {bookingMethod ? (
+          <div className="mt-4">
+            <PrimaryButton className="w-full !py-3.5 text-base" onClick={() => reserve(cafe)}>
+              <Icon name="cup" size={18} /> {fine ? "Reserve Table" : "Reserve"}
+            </PrimaryButton>
+            <p className="mt-1.5 text-center text-xs text-brown/65">
+              {resStatus}{cafe.depositRequired ? " · Deposit may be required" : ""}
+            </p>
+          </div>
+        ) : cafe.walkInOnly ? (
+          <p className="mt-4 rounded-xl2 border border-line bg-card px-4 py-3 text-center text-sm text-brown/70 shadow-card">
+            Walk-in only
+          </p>
+        ) : null}
 
         {myRank && (
           <div className="mt-4 rounded-xl2 border border-gold/40 bg-gold/5 p-4">
@@ -251,10 +267,10 @@ export default function CafeProfile({ cafeId }) {
         <div className="mt-4 space-y-2 rounded-xl2 border border-line bg-card p-4 text-sm shadow-card">
           <p className="text-brown/90">{cafe.blurb}</p>
           <div className="grid grid-cols-1 gap-2 pt-2">
-            <Row icon="clock" text={`Open ${cafe.hours}`} />
+            {cafe.hours && <Row icon="clock" text={`Open ${cafe.hours}`} />}
             <Row icon="pin" text={cafe.address} />
-            <Row icon="phone" text={cafe.phone} />
-            <Row icon="globe" text={cafe.website} />
+            {cafe.phone && <Row icon="phone" text={cafe.phone} />}
+            {cafe.website && <Row icon="globe" text={prettyDomain(cafe.website)} />}
           </div>
           <div className="flex gap-2 pt-2">
             <PrimaryButton
@@ -265,10 +281,60 @@ export default function CafeProfile({ cafeId }) {
             >
               <Icon name="directions" size={16} /> Directions
             </PrimaryButton>
-            <GhostButton className="!px-4 !py-2.5" onClick={() => window.open(`https://${cafe.website}`, "_blank")}>
-              Website
-            </GhostButton>
+            {cafe.website && (
+              <GhostButton
+                className="!px-4 !py-2.5"
+                onClick={() => window.open(cafe.website.startsWith("http") ? cafe.website : `https://${cafe.website}`, "_blank")}
+              >
+                Website
+              </GhostButton>
+            )}
           </div>
+        </div>
+
+        {/* Sipp Rating */}
+        <h3 className="mb-3 mt-6 serif text-2xl text-espresso">
+          Sipp <span className="gold-italic">rating</span>
+        </h3>
+        <div className="space-y-3 rounded-xl2 border border-line bg-card p-4 shadow-card">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-brown/80">Community Score</span>
+            <span className="serif text-2xl leading-none text-espresso">{(cafe.communityScore ?? cafe.sippScore ?? 0).toFixed(1)}</span>
+          </div>
+          {cafe.isSippRated && (
+            <div className="flex items-center justify-between border-t border-line pt-3">
+              <span className="inline-flex items-center gap-2 text-sm text-brown/80">
+                <span className="rounded-full border border-gold/50 bg-gold/10 px-2 py-0.5 text-[10px] font-medium text-gold">Sipp Rated</span>
+              </span>
+              <span className="serif text-2xl leading-none text-gold">{(cafe.sippRatedScore ?? cafe.communityScore ?? cafe.sippScore ?? 0).toFixed(1)}</span>
+            </div>
+          )}
+          {cafe.hasSippStar && (
+            <div className="flex items-start gap-2 border-t border-line pt-3">
+              <span className="rounded-full bg-espresso px-2.5 py-1 text-[10px] font-semibold text-gold">★ Sipp Star</span>
+              <span className="text-xs text-brown/70">Awarded to places we believe are truly worth your time.</span>
+            </div>
+          )}
+          {cafe.sippNote && (
+            <p className="border-t border-line pt-3 text-sm italic text-brown/85">“{cafe.sippNote}”</p>
+          )}
+          {(cafe.isSippRated || cafe.hasSippStar) && (
+            <p className="text-[11px] text-brown/60">
+              Reviewed by {cafe.sippReviewer || "Sipp"}
+              {cafe.sippReviewDate
+                ? " · " + new Date(cafe.sippReviewDate).toLocaleString("en", { month: "long", year: "numeric" })
+                : ""}
+            </p>
+          )}
+          {cafe.sippBreakdown && (
+            <div className="flex flex-wrap gap-1.5 border-t border-line pt-3">
+              {Object.entries(cafe.sippBreakdown).map(([k, v]) => (
+                <span key={k} className="rounded-full bg-ivory border border-line px-2.5 py-1 text-[11px] text-brown">
+                  {k} {Number(v).toFixed(1)}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Personality score */}
@@ -304,29 +370,74 @@ export default function CafeProfile({ cafeId }) {
           </div>
         </div>
 
-        {/* Menu */}
-        <div className="mb-2 mt-6 flex items-end justify-between">
-          <h3 className="serif text-2xl text-espresso">
-            The <span className="gold-italic">menu</span>
-          </h3>
-          <button onClick={() => setMenuOpen(true)} className="text-xs font-medium text-gold">
-            View full menu
-          </button>
-        </div>
-        <button
-          onClick={() => setMenuOpen(true)}
-          className="block w-full overflow-hidden rounded-xl2 border border-line bg-card text-left shadow-card"
-        >
-          {menuPreview.items.slice(0, 4).map((it, i) => (
-            <div key={it.name} className={`flex items-center justify-between px-4 py-3 ${i ? "border-t border-line" : ""}`}>
-              <span className="text-sm text-espresso">{it.name}</span>
-              <span className="serif text-lg text-gold">{it.price} <span className="text-xs text-brown/60">AED</span></span>
+        {/* Menu (cafés) */}
+        {!fine && (
+          <>
+            <div className="mb-2 mt-6 flex items-end justify-between">
+              <h3 className="serif text-2xl text-espresso">
+                The <span className="gold-italic">menu</span>
+              </h3>
+              <button onClick={() => setMenuOpen(true)} className="text-xs font-medium text-gold">
+                View full menu
+              </button>
             </div>
-          ))}
-          <div className="border-t border-line px-4 py-2.5 text-center text-xs font-medium text-gold">
-            View full menu →
-          </div>
-        </button>
+            <button
+              onClick={() => setMenuOpen(true)}
+              className="block w-full overflow-hidden rounded-xl2 border border-line bg-card text-left shadow-card"
+            >
+              {menuPreview.items.slice(0, 4).map((it, i) => (
+                <div key={it.name} className={`flex items-center justify-between px-4 py-3 ${i ? "border-t border-line" : ""}`}>
+                  <span className="text-sm text-espresso">{it.name}</span>
+                  <span className="serif text-lg text-gold">{it.price} <span className="text-xs text-brown/60">AED</span></span>
+                </div>
+              ))}
+              <div className="border-t border-line px-4 py-2.5 text-center text-xs font-medium text-gold">
+                View full menu →
+              </div>
+            </button>
+          </>
+        )}
+
+        {/* Menu (fine dining) — real scraped menu if we have it, else link to the source */}
+        {fine && (cafe.menu?.length || cafe.website || cafe.googleMapsUrl) && (
+          <>
+            <div className="mb-2 mt-6 flex items-end justify-between">
+              <h3 className="serif text-2xl text-espresso">
+                The <span className="gold-italic">menu</span>
+              </h3>
+              {cafe.menu?.length > 0 && (
+                <button onClick={() => setMenuOpen(true)} className="text-xs font-medium text-gold">View full menu</button>
+              )}
+            </div>
+            {cafe.menu?.length > 0 ? (
+              <button onClick={() => setMenuOpen(true)} className="block w-full overflow-hidden rounded-xl2 border border-line bg-card text-left shadow-card">
+                {(cafe.menu[0]?.items || []).slice(0, 4).map((it, i) => (
+                  <div key={it.name} className={`flex items-center justify-between px-4 py-3 ${i ? "border-t border-line" : ""}`}>
+                    <span className="text-sm text-espresso">{it.name}</span>
+                    <span className="serif text-lg text-gold">{it.price} <span className="text-xs text-brown/60">AED</span></span>
+                  </div>
+                ))}
+                <div className="border-t border-line px-4 py-2.5 text-center text-xs font-medium text-gold">View full menu →</div>
+              </button>
+            ) : (
+              <button
+                onClick={() =>
+                  window.open(
+                    cafe.website ? (cafe.website.startsWith("http") ? cafe.website : `https://${cafe.website}`) : cafe.googleMapsUrl,
+                    "_blank"
+                  )
+                }
+                className="flex w-full items-center justify-between rounded-xl2 border border-line bg-card px-4 py-4 text-left shadow-card"
+              >
+                <div>
+                  <p className="serif text-lg leading-tight text-espresso">View the menu</p>
+                  <p className="text-xs text-brown/65">{cafe.website ? `on ${prettyDomain(cafe.website)}` : "on Google"}</p>
+                </div>
+                <Icon name="globe" size={20} className="text-gold" />
+              </button>
+            )}
+          </>
+        )}
 
         {/* Why people love it */}
         <h3 className="mb-2 mt-6 serif text-2xl text-espresso">
@@ -341,38 +452,51 @@ export default function CafeProfile({ cafeId }) {
         </div>
 
         {/* Friends thoughts */}
-        <h3 className="mb-2 mt-6 serif text-2xl text-espresso">
-          Friends' <span className="gold-italic">thoughts</span>
-        </h3>
-        <div className="space-y-2.5">
-          {FRIEND_REVIEWS.map((r, i) => {
-            const u = USERS[r.user];
-            return (
-              <div key={i} className="rounded-xl2 border border-line bg-card p-4 shadow-card">
-                <div className="flex items-center gap-2">
-                  <Avatar user={u} size={32} />
-                  <span className="text-sm font-medium text-espresso">{u.name}</span>
-                  <span className="ml-auto serif text-lg text-gold">{r.score.toFixed(1)}</span>
-                </div>
-                <p className="mt-2 text-sm text-brown/80">“{r.text}”</p>
-              </div>
-            );
-          })}
-        </div>
+        {friendThoughts.length > 0 && (
+          <>
+            <h3 className="mb-2 mt-6 serif text-2xl text-espresso">
+              Friends' <span className="gold-italic">thoughts</span>
+            </h3>
+            <div className="space-y-2.5">
+              {friendThoughts.map((r) => {
+                const u = getProfile(r.user);
+                return (
+                  <button key={r.id} onClick={() => openUser(u.id)} className="block w-full rounded-xl2 border border-line bg-card p-4 text-left shadow-card">
+                    <div className="flex items-center gap-2">
+                      <Avatar user={u} size={32} />
+                      <span className="text-sm font-medium text-espresso">{u.name}</span>
+                      <span className="ml-auto serif text-lg text-gold">{r.overall.toFixed(1)}</span>
+                    </div>
+                    {r.text && <p className="mt-2 text-sm text-brown/80">“{r.text}”</p>}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
 
         {/* Community reviews */}
         <h3 className="mb-2 mt-6 serif text-2xl text-espresso">Community reviews</h3>
-        <div className="space-y-2.5">
-          {COMMUNITY.map((r, i) => (
-            <div key={i} className="rounded-xl2 border border-line bg-card p-4 shadow-card">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-espresso">{r.name}</span>
-                <span className="serif text-lg text-gold">{r.score.toFixed(1)}</span>
-              </div>
-              <p className="mt-1 text-sm text-brown/80">“{r.text}”</p>
-            </div>
-          ))}
-        </div>
+        {community.length === 0 ? (
+          <p className="rounded-xl2 border border-line bg-card p-4 text-center text-sm text-brown/65 shadow-card">
+            No reviews yet — be the first to rank {cafe.name}.
+          </p>
+        ) : (
+          <div className="space-y-2.5">
+            {community.map((r) => {
+              const u = getProfile(r.user);
+              return (
+                <button key={r.id} onClick={() => openUser(u.id)} className="block w-full rounded-xl2 border border-line bg-card p-4 text-left shadow-card">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-espresso">{u.name}</span>
+                    <span className="serif text-lg text-gold">{r.overall.toFixed(1)}</span>
+                  </div>
+                  {r.text && <p className="mt-1 text-sm text-brown/80">“{r.text}”</p>}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Similar nearby */}
         <h3 className="mb-3 mt-6 serif text-2xl text-espresso">
@@ -387,7 +511,7 @@ export default function CafeProfile({ cafeId }) {
 
       {listSheet && <AddToListSheet cafeId={cafe.id} onClose={() => setListSheet(false)} />}
       {shareOpen && <ShareCard cafe={cafe} onClose={() => setShareOpen(false)} />}
-      {menuOpen && <MenuSheet cafe={cafe} onClose={() => setMenuOpen(false)} />}
+      {menuOpen && <MenuSheet cafe={cafe} menu={cafe.menu?.length ? cafe.menu : undefined} onClose={() => setMenuOpen(false)} />}
     </div>
   );
 }

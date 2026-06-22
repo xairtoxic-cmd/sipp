@@ -1,35 +1,37 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CAFES, cafeById, VIBE_TAGS, CROWD_LEVELS, BEST_TIMES } from "@/lib/seed";
+import { VIBE_TAGS, CROWD_LEVELS, BEST_TIMES, OCCASION_TAGS, isFineDining } from "@/lib/seed";
 import { useStore } from "@/lib/store";
 import { Icon } from "../Icons";
-import { CafeImage, PrimaryButton, GhostButton, Tag } from "../UI";
+import { CafeImage, PrimaryButton, GhostButton, Tag, Avatar } from "../UI";
 import { LogoHeader } from "../Chrome";
 
-// Core scores drive the auto-calculated Overall.
-const CORE_SUBS = [
+// Core scores drive the auto-calculated Overall (differs by place type).
+const CAFE_CORE = [
   ["drink", "Coffee / Drinks"],
   ["food", "Food"],
   ["vibe", "Vibe"],
   ["service", "Service"],
   ["value", "Value"],
 ];
-const EXTRA_SUBS = [
+const CAFE_EXTRA = [
   ["work", "Work-friendly"],
   ["aesthetic", "Aesthetic"],
+];
+const FINE_CORE = [
+  ["food", "Food"],
+  ["service", "Service"],
+  ["ambience", "Ambience"],
+  ["presentation", "Presentation"],
+  ["value", "Value"],
+  ["dateNight", "Date-night"],
 ];
 
 const TAG_OPTIONS = VIBE_TAGS;
 
-const PROMPTS = [
-  "What did you order?",
-  "How was the vibe?",
-  "Best for?",
-  "Good for working?",
-  "Worth the price?",
-  "How busy was it?",
-];
+const CAFE_PROMPTS = ["What did you order?", "How was the vibe?", "Best for?", "Good for working?", "Worth the price?", "How busy was it?"];
+const FINE_PROMPTS = ["What did you order?", "How was the service?", "Best for?", "Worth the price?", "Dress code / vibe?", "Special occasion?"];
 
 function Slider({ label, value, onChange }) {
   return (
@@ -52,22 +54,54 @@ function Slider({ label, value, onChange }) {
 }
 
 export default function RankView() {
-  const { prefillRankId, setPrefillRankId, ranks, saveRank, openCafe } = useStore();
+  const { prefillRankId, setPrefillRankId, ranks, saveRank, openCafe, cafes, cafeById, reviews, getProfile, openUser, uploadReviewPhoto } = useStore();
+  const [lbScope, setLbScope] = useState("all");
+
+  const leaderboard = useMemo(() => {
+    const cutoff = Date.now() - 7 * 24 * 3600 * 1000;
+    const counts = {};
+    reviews.forEach((r) => {
+      if (lbScope === "week" && (!r.createdAt || new Date(r.createdAt).getTime() < cutoff)) return;
+      counts[r.user] = (counts[r.user] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .map(([id, n]) => ({ id, n }))
+      .sort((a, b) => b.n - a.n)
+      .slice(0, 10);
+  }, [reviews, lbScope]);
   const [selectedId, setSelectedId] = useState(prefillRankId || null);
   const [q, setQ] = useState("");
 
-  const [subs, setSubs] = useState({ drink: 8, food: 8, vibe: 8, service: 8, value: 8, work: 8, aesthetic: 8 });
+  const [subs, setSubs] = useState({ drink: 8, food: 8, vibe: 8, service: 8, value: 8, work: 8, aesthetic: 8, ambience: 8, presentation: 8, dateNight: 8 });
   const [showMore, setShowMore] = useState(false);
-  // Overall is auto-calculated from the core scores.
-  const overall = Math.round(((subs.drink + subs.food + subs.vibe + subs.service + subs.value) / 5) * 10) / 10;
   const [bestItem, setBestItem] = useState("");
+  const [occasion, setOccasion] = useState("");
   const [again, setAgain] = useState(true);
   const [review, setReview] = useState("");
   const [visitDate, setVisitDate] = useState("");
   const [tags, setTags] = useState([]);
   const [crowd, setCrowd] = useState("Moderate");
   const [bestTime, setBestTime] = useState("");
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+
+  function pickPhoto(e) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setPhotoFile(f);
+    const reader = new FileReader();
+    reader.onload = () => setPhotoPreview(reader.result);
+    reader.readAsDataURL(f);
+  }
+
+  const selectedCafe = selectedId ? cafeById(selectedId) : null;
+  const fine = isFineDining(selectedCafe);
+  const coreSubs = fine ? FINE_CORE : CAFE_CORE;
+  const PROMPTS = fine ? FINE_PROMPTS : CAFE_PROMPTS;
+  // Overall is auto-calculated from the relevant core scores.
+  const overall = Math.round((coreSubs.reduce((s, [k]) => s + subs[k], 0) / coreSubs.length) * 10) / 10;
 
   useEffect(() => {
     if (prefillRankId) {
@@ -76,13 +110,13 @@ export default function RankView() {
     }
   }, [prefillRankId, setPrefillRankId]);
 
-  const cafe = selectedId ? cafeById(selectedId) : null;
+  const cafe = selectedCafe;
 
   const matches = useMemo(() => {
-    if (!q.trim()) return CAFES.slice(0, 6);
+    if (!q.trim()) return cafes.slice(0, 6);
     const s = q.toLowerCase();
-    return CAFES.filter((c) => c.name.toLowerCase().includes(s) || c.area.toLowerCase().includes(s)).slice(0, 8);
-  }, [q]);
+    return cafes.filter((c) => c.name.toLowerCase().includes(s) || (c.area || "").toLowerCase().includes(s)).slice(0, 8);
+  }, [q, cafes]);
 
   function toggleTag(t) {
     setTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
@@ -92,32 +126,45 @@ export default function RankView() {
     setReview((r) => (r ? `${r}\n${p} ` : `${p} `));
   }
 
-  function submit() {
-    saveRank(selectedId, {
+  async function submit() {
+    setSubmitting(true);
+    let photoUrls = [];
+    if (photoFile) {
+      const url = await uploadReviewPhoto(photoFile);
+      if (url) photoUrls = [url];
+    }
+    await saveRank(selectedId, {
       overall,
       ...subs,
-      bestItem,
+      bestItem: fine ? "" : bestItem,
+      bestDish: fine ? bestItem : "",
+      occasion: fine ? occasion : "",
       again,
       review,
       visitDate,
       tags,
       crowd,
       bestTime,
+      photoUrls,
     });
+    setSubmitting(false);
     setDone(true);
   }
 
   function reset() {
     setSelectedId(null);
     setDone(false);
-    setSubs({ drink: 8, food: 8, vibe: 8, service: 8, value: 8, work: 8, aesthetic: 8 });
+    setSubs({ drink: 8, food: 8, vibe: 8, service: 8, value: 8, work: 8, aesthetic: 8, ambience: 8, presentation: 8, dateNight: 8 });
     setShowMore(false);
     setBestItem("");
+    setOccasion("");
     setReview("");
     setVisitDate("");
     setTags([]);
     setCrowd("Moderate");
     setBestTime("");
+    setPhotoFile(null);
+    setPhotoPreview(null);
     setQ("");
   }
 
@@ -129,7 +176,7 @@ export default function RankView() {
           <div className="grid h-20 w-20 place-items-center rounded-full bg-gold text-cream shadow-float animate-pop">
             <Icon name="check" size={36} />
           </div>
-          <h1 className="mt-5 serif text-4xl text-espresso">Added to your café map.</h1>
+          <h1 className="mt-5 serif text-4xl text-espresso">Added to your map.</h1>
           <p className="mt-2 text-sm text-brown/70">
             {cafe.name} is now ranked <span className="text-gold">{overall.toFixed(1)}</span> in your list.
           </p>
@@ -146,7 +193,7 @@ export default function RankView() {
     <div className="px-5 pb-32">
       <LogoHeader>
         <h1 className="mt-2 px-1 serif text-4xl text-espresso">
-          Rank a <span className="gold-italic">café</span>
+          Rank a <span className="gold-italic">place</span>
         </h1>
       </LogoHeader>
 
@@ -157,7 +204,7 @@ export default function RankView() {
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search a café you visited"
+              placeholder="Search a place you visited"
               className="w-full bg-transparent text-sm text-espresso placeholder:text-brown/50 focus:outline-none"
             />
           </div>
@@ -178,14 +225,58 @@ export default function RankView() {
               </button>
             ))}
           </div>
+
+          {/* Leaderboard */}
+          <div className="mt-7 flex items-end justify-between px-1">
+            <h2 className="serif text-2xl text-espresso">
+              Top <span className="gold-italic">reviewers</span>
+            </h2>
+            <div className="flex gap-1.5">
+              {[["all", "All time"], ["week", "This week"]].map(([k, label]) => (
+                <button
+                  key={k}
+                  onClick={() => setLbScope(k)}
+                  className={`rounded-full px-3 py-1 text-xs ${lbScope === k ? "bg-espresso text-cream" : "border border-line bg-card text-brown"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {leaderboard.length === 0 ? (
+            <p className="mt-3 rounded-xl2 border border-line bg-card p-4 text-center text-sm text-brown/65 shadow-card">
+              No reviews {lbScope === "week" ? "this week" : "yet"} — be the first to rank a place.
+            </p>
+          ) : (
+            <div className="mt-3 overflow-hidden rounded-xl2 border border-line bg-card shadow-card">
+              {leaderboard.map((row, i) => {
+                const u = getProfile(row.id);
+                return (
+                  <button
+                    key={row.id}
+                    onClick={() => openUser(row.id)}
+                    className={`flex w-full items-center gap-3 px-4 py-3 text-left ${i ? "border-t border-line" : ""}`}
+                  >
+                    <span className={`w-5 shrink-0 serif text-lg ${i < 3 ? "text-gold" : "text-brown/50"}`}>{i + 1}</span>
+                    <Avatar user={u} size={36} />
+                    <div className="min-w-0 flex-1">
+                      <p className="serif text-lg leading-none text-espresso">{u.name}</p>
+                      <p className="mt-0.5 truncate text-xs text-brown/60">{u.username}</p>
+                    </div>
+                    <span className="serif text-xl text-espresso">{row.n}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       ) : (
         <div className="mt-4 space-y-4">
           <div className="flex items-center gap-3 rounded-xl2 border border-line bg-card p-3 shadow-card">
-            <CafeImage src={cafe.images[0]} alt={cafe.name} seed={cafe.id} className="h-16 w-16" />
+            <CafeImage src={cafe.images[0]} alt={cafe.name} seed={cafe.id} query={`${cafe.name}, ${cafe.area}`} className="h-16 w-16" />
             <div className="flex-1">
               <h3 className="serif text-2xl text-espresso">{cafe.name}</h3>
-              <p className="text-xs text-brown/70">{cafe.area}</p>
+              <p className="text-xs text-brown/70">{fine ? "Fine Dining" : "Café"} · {cafe.area}</p>
             </div>
             <button onClick={() => setSelectedId(null)} className="text-brown/50">
               <Icon name="x" size={20} />
@@ -201,12 +292,30 @@ export default function RankView() {
             <span className="serif text-5xl font-bold leading-none text-gold">{overall.toFixed(1)}</span>
           </div>
 
-          {/* Core scores */}
+          {/* Core scores (adapt to place type) */}
           <div className="grid grid-cols-1 gap-4 rounded-xl2 border border-line bg-card p-4 shadow-card">
-            {CORE_SUBS.map(([key, label]) => (
+            {coreSubs.map(([key, label]) => (
               <Slider key={key} label={label} value={subs[key]} onChange={(v) => setSubs((s) => ({ ...s, [key]: v }))} />
             ))}
           </div>
+
+          {/* Occasion — fine dining only */}
+          {fine && (
+            <div className="rounded-xl2 border border-line bg-card p-4 shadow-card">
+              <p className="mb-2 text-sm text-brown/80">Occasion</p>
+              <div className="flex flex-wrap gap-2">
+                {OCCASION_TAGS.map((o) => (
+                  <button
+                    key={o}
+                    onClick={() => setOccasion((v) => (v === o ? "" : o))}
+                    className={`rounded-full px-3.5 py-1.5 text-xs ${occasion === o ? "bg-espresso text-cream" : "border border-line bg-ivory text-brown"}`}
+                  >
+                    {o}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Review */}
           <div className="rounded-xl2 border border-line bg-card p-4 shadow-card">
@@ -232,7 +341,7 @@ export default function RankView() {
             <input
               value={bestItem}
               onChange={(e) => setBestItem(e.target.value)}
-              placeholder="Best item tried (optional)"
+              placeholder={fine ? "Best dish tried (optional)" : "Best item tried (optional)"}
               className="mt-2 w-full rounded-xl border border-line bg-ivory px-3 py-2.5 text-sm text-espresso placeholder:text-brown/40 focus:border-gold focus:outline-none"
             />
           </div>
@@ -267,9 +376,10 @@ export default function RankView() {
           {showMore && (
             <div className="space-y-4 animate-fadeIn">
               <div className="grid grid-cols-1 gap-4 rounded-xl2 border border-line bg-card p-4 shadow-card">
-                {EXTRA_SUBS.map(([key, label]) => (
-                  <Slider key={key} label={label} value={subs[key]} onChange={(v) => setSubs((s) => ({ ...s, [key]: v }))} />
-                ))}
+                {!fine &&
+                  CAFE_EXTRA.map(([key, label]) => (
+                    <Slider key={key} label={label} value={subs[key]} onChange={(v) => setSubs((s) => ({ ...s, [key]: v }))} />
+                  ))}
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-brown/80">Would you go again?</span>
                   <div className="flex gap-2">
@@ -298,8 +408,30 @@ export default function RankView() {
             </div>
           )}
 
+          {/* Photo */}
+          <div className="rounded-xl2 border border-line bg-card p-4 shadow-card">
+            <p className="mb-2 text-sm text-brown/80">Add a photo</p>
+            {photoPreview ? (
+              <div className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={photoPreview} alt="Your photo" className="h-44 w-full rounded-xl object-cover" />
+                <button
+                  onClick={() => { setPhotoFile(null); setPhotoPreview(null); }}
+                  className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-espresso/80 text-cream"
+                >
+                  <Icon name="x" size={16} />
+                </button>
+              </div>
+            ) : (
+              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-gold/50 bg-ivory py-6 text-sm font-medium text-gold">
+                <Icon name="plus" size={18} /> Upload a photo
+                <input type="file" accept="image/*" onChange={pickPhoto} className="hidden" />
+              </label>
+            )}
+          </div>
+
           <PrimaryButton className="w-full !py-4 text-base" onClick={submit}>
-            Add to my café map
+            {submitting ? "Posting…" : "Add to my map"}
           </PrimaryButton>
         </div>
       )}

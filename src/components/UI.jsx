@@ -5,6 +5,18 @@ import { Icon } from "./Icons";
 
 const PHOTOS_ENABLED = process.env.NEXT_PUBLIC_PLACES_PHOTOS === "1";
 
+// Lock background scrolling while a modal/sheet is open.
+export function useBodyScrollLock(active = true) {
+  useEffect(() => {
+    if (!active) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [active]);
+}
+
 // In-memory cache so each café's real photo is fetched once per session.
 const photoCache = new Map();
 
@@ -112,6 +124,25 @@ export function Chip({ active, children, onClick }) {
     >
       {children}
     </button>
+  );
+}
+
+// Sipp Rated / Sipp Star pills — original Sipp identity (espresso + gold).
+export function SippBadges({ place, className = "" }) {
+  if (!place?.isSippRated && !place?.hasSippStar) return null;
+  return (
+    <span className={`flex flex-wrap items-center gap-1.5 ${className}`}>
+      {place.hasSippStar && (
+        <span className="inline-flex items-center gap-1 rounded-full bg-espresso px-2.5 py-1 text-[10px] font-semibold tracking-wide text-gold">
+          ★ Sipp Star
+        </span>
+      )}
+      {place.isSippRated && (
+        <span className="inline-flex items-center gap-1 rounded-full border border-gold/50 bg-gold/10 px-2.5 py-1 text-[10px] font-medium text-gold">
+          Sipp Rated
+        </span>
+      )}
+    </span>
   );
 }
 

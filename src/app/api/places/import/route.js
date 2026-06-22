@@ -6,12 +6,23 @@ import { NextResponse } from "next/server";
 import { CAFES } from "@/lib/seed";
 
 const CAFE_TYPE_HINTS = ["cafe", "coffee", "matcha", "brunch", "bakery", "dessert", "tea", "roaster"];
+const FINE_HINTS = ["fine dining", "tasting", "michelin", "chef", "lounge", "rooftop", "steak", "omakase", "brasserie", "grill"];
 
 function looksLikeCafe(name = "", types = []) {
   const n = name.toLowerCase();
   const t = types.join(" ").toLowerCase();
   return CAFE_TYPE_HINTS.some((h) => n.includes(h) || t.includes(h)) ||
     types.includes("cafe") || types.includes("coffee_shop") || types.includes("bakery");
+}
+
+// Suggest a curated category for the admin to confirm. Premium restaurants only.
+function guessCategory(name = "", types = [], priceLevel) {
+  const n = name.toLowerCase();
+  const t = types.join(" ").toLowerCase();
+  if (looksLikeCafe(name, types)) return "cafe";
+  const fineSignal = FINE_HINTS.some((h) => n.includes(h)) || ["PRICE_LEVEL_EXPENSIVE", "PRICE_LEVEL_VERY_EXPENSIVE", 4].includes(priceLevel);
+  if ((t.includes("restaurant") || types.includes("fine_dining_restaurant")) && fineSignal) return "fine_dining";
+  return null; // not curated — admin can reject
 }
 
 export async function POST(req) {
@@ -32,12 +43,13 @@ export async function POST(req) {
         emirate,
         lat: c.lat,
         lng: c.lng,
-        primary_type: "cafe",
-        types: ["cafe", "coffee_shop"],
+        primary_type: c.category === "fine_dining" ? "restaurant" : "cafe",
+        types: c.category === "fine_dining" ? ["restaurant", "fine_dining_restaurant"] : ["cafe", "coffee_shop"],
         google_rating: c.rating,
         google_rating_count: c.reviews,
         price_level: c.price,
-        is_cafe: true,
+        is_cafe: c.category !== "fine_dining",
+        place_category: c.category || "cafe",
       }));
     return NextResponse.json({ simulated: true, query: `${type} in ${area || emirate}`, results: sample });
   }
@@ -77,6 +89,7 @@ export async function POST(req) {
         website: p.websiteUri,
         google_maps_url: p.googleMapsUri,
         is_cafe: looksLikeCafe(p.displayName?.text, p.types),
+        place_category: guessCategory(p.displayName?.text, p.types, p.priceLevel),
       }));
     return NextResponse.json({ simulated: false, query: `${type} in ${area || emirate}`, results });
   } catch (e) {

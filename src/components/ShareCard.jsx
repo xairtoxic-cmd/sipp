@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { REVIEWS, USERS } from "@/lib/seed";
+import { categoryLabel } from "@/lib/seed";
+import { getBestBookingMethod } from "@/lib/booking";
 import { useStore } from "@/lib/store";
 import { Icon } from "./Icons";
-import { CafeImage, PrimaryButton, GhostButton } from "./UI";
+import { CafeImage, PrimaryButton, GhostButton, useBodyScrollLock } from "./UI";
 
 const FORMATS = [
   { id: "story", label: "Story 9:16", ratio: "9 / 16" },
@@ -47,7 +48,7 @@ function ClassicCard({ cafe, top, reviewer, savedBy, fmt }) {
             <h2 className="serif text-3xl leading-none">{cafe.name}</h2>
             <span className="serif text-4xl font-bold leading-none">{cafe.sippScore.toFixed(1)}</span>
           </div>
-          <p className="mt-1 text-xs text-cream/85">{cafe.area}</p>
+          <p className="mt-1 text-xs text-cream/85">{categoryLabel(cafe)} · {cafe.area}</p>
           <Tags cafe={cafe} className="mt-2" />
           {top && fmt !== "square" && (
             <div className="mt-3 rounded-2xl bg-cream/15 p-3 backdrop-blur">
@@ -80,7 +81,7 @@ function EditorialCard({ cafe, top, reviewer, fmt }) {
           <h2 className="serif text-3xl leading-none text-espresso">{cafe.name}</h2>
           <span className="serif text-3xl font-bold leading-none text-gold">{cafe.sippScore.toFixed(1)}</span>
         </div>
-        <p className="mt-0.5 text-xs text-brown/70">{cafe.area}</p>
+        <p className="mt-0.5 text-xs text-brown/70">{categoryLabel(cafe)} · {cafe.area}</p>
         <div className="mt-2 flex flex-wrap gap-1">
           {cafe.tags.slice(0, 3).map((t) => (
             <span key={t} className="rounded-full border border-line bg-ivory px-2 py-0.5 text-[10px] text-brown">{t}</span>
@@ -107,7 +108,7 @@ function BoldCard({ cafe, top, reviewer, fmt }) {
         <p className="text-[11px] uppercase tracking-widest text-gold">Sipp Score</p>
         <p className="serif text-[5rem] font-bold leading-[0.85] text-gold">{cafe.sippScore.toFixed(1)}</p>
         <h2 className="mt-3 serif text-4xl leading-none">{cafe.name}</h2>
-        <p className="mt-1 text-sm text-cream/70">{cafe.area}</p>
+        <p className="mt-1 text-sm text-cream/70">{categoryLabel(cafe)} · {cafe.area}</p>
         <div className="mt-2 flex flex-wrap gap-1">
           {cafe.tags.slice(0, 3).map((t) => (
             <span key={t} className="rounded-full border border-cream/25 px-2 py-0.5 text-[10px] text-cream/85">{t}</span>
@@ -122,13 +123,15 @@ function BoldCard({ cafe, top, reviewer, fmt }) {
 }
 
 export function ShareCard({ cafe, onClose }) {
-  const { toast } = useStore();
+  useBodyScrollLock();
+  const { toast, reviews, getProfile, reserve } = useStore();
+  const booking = getBestBookingMethod(cafe);
   const [fmt, setFmt] = useState("story");
   const [tpl, setTpl] = useState("classic");
   const ratio = FORMATS.find((f) => f.id === fmt)?.ratio;
 
-  const top = REVIEWS.filter((r) => r.cafeId === cafe.id).sort((a, b) => b.overall - a.overall)[0];
-  const reviewer = top ? USERS[top.user] : null;
+  const top = reviews.filter((r) => r.cafeId === cafe.id).sort((a, b) => b.overall - a.overall)[0];
+  const reviewer = top ? getProfile(top.user) : null;
   const savedBy = 6 + (hashNum(cafe.id) % 18);
   const link = typeof window !== "undefined" ? `${window.location.origin}/share/place/${cafe.id}` : `/share/place/${cafe.id}`;
 
@@ -190,7 +193,7 @@ export function ShareCard({ cafe, onClose }) {
         </div>
 
         {/* Card preview */}
-        <div className="no-scrollbar flex-1 overflow-y-auto px-5 py-4">
+        <div className="no-scrollbar flex-1 overflow-y-auto overscroll-contain px-5 py-4">
           <div
             className="relative mx-auto w-full max-w-[300px] overflow-hidden rounded-xl3 border border-line shadow-float"
             style={{ aspectRatio: ratio, background: "#FFFBF4" }}
@@ -209,6 +212,11 @@ export function ShareCard({ cafe, onClose }) {
             Share
           </PrimaryButton>
         </div>
+        {booking && (
+          <button onClick={() => reserve(cafe)} className="mx-5 mt-2 flex items-center justify-center gap-2 rounded-full border border-gold/50 bg-gold/10 py-3 text-sm font-medium text-gold">
+            <Icon name="cup" size={16} /> Reserve Table
+          </button>
+        )}
         <p className="px-5 pt-2 text-center text-[11px] text-brown/50">Long-press the card to save the image.</p>
       </div>
     </div>

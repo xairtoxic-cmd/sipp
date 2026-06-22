@@ -158,8 +158,18 @@ export function ShareCard({ cafe, onClose }) {
       const blob = await toBlob(cardRef.current, { pixelRatio: 2.5, cacheBust: true, backgroundColor: "#FFFBF4" });
       if (!blob) throw new Error("render failed");
       const file = new File([blob], `sipp-${cafe.id}.png`, { type: "image/png" });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: `${cafe.name} on Sipp`, text: `${cafe.name} — ${cafe.area} · ${link}` });
+      const title = `${cafe.name} on Sipp`;
+      const text = `${cafe.name} — ${cafe.area}\n${link}`;
+      const withUrl = { files: [file], title, text, url: link };
+      const filesOnly = { files: [file], title, text };
+      if (navigator.canShare && navigator.canShare(withUrl)) {
+        // Best case: image + link in both text and url.
+        await navigator.share(withUrl);
+      } else if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        // Some targets won't take url alongside a file — keep the link in the text,
+        // and copy it so it can always be pasted with the post.
+        try { await navigator.clipboard?.writeText(link); } catch {}
+        await navigator.share(filesOnly);
       } else {
         // No file-share support (most desktops): save the image so they still get the picture.
         const a = document.createElement("a");

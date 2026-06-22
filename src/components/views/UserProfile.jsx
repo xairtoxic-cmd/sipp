@@ -65,7 +65,7 @@ export default function UserProfile({ userId }) {
               </PrimaryButton>
             )}
             <GhostButton className="!px-5" onClick={shareProfile} aria-label="Share profile">
-              <Icon name="send" size={16} />
+              <Icon name="share" size={16} />
             </GhostButton>
           </div>
         )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { categoryLabel } from "@/lib/seed";
 import { getBestBookingMethod } from "@/lib/booking";
 import { useStore } from "@/lib/store";
@@ -128,6 +128,8 @@ export function ShareCard({ cafe, onClose }) {
   const booking = getBestBookingMethod(cafe);
   const [fmt, setFmt] = useState("story");
   const [tpl, setTpl] = useState("classic");
+  const [sharing, setSharing] = useState(false);
+  const cardRef = useRef(null);
   const ratio = FORMATS.find((f) => f.id === fmt)?.ratio;
 
   const top = reviews.filter((r) => r.cafeId === cafe.id).sort((a, b) => b.overall - a.overall)[0];
@@ -143,6 +145,34 @@ export function ShareCard({ cafe, onClose }) {
       navigator.share({ title: `${cafe.name} on Sipp`, text: `${cafe.name} — ${cafe.area}`, url: link }).catch(() => {});
     } else {
       copy();
+    }
+  }
+
+  // Share the actual card image (the style they chose), falling back to saving
+  // the image, then to sharing just the link.
+  async function shareImage() {
+    if (!cardRef.current) return nativeShare();
+    setSharing(true);
+    try {
+      const { toBlob } = await import("html-to-image");
+      const blob = await toBlob(cardRef.current, { pixelRatio: 2.5, cacheBust: true, backgroundColor: "#FFFBF4" });
+      if (!blob) throw new Error("render failed");
+      const file = new File([blob], `sipp-${cafe.id}.png`, { type: "image/png" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: `${cafe.name} on Sipp`, text: `${cafe.name} — ${cafe.area} · ${link}` });
+      } else {
+        // No file-share support (most desktops): save the image so they still get the picture.
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `sipp-${cafe.name.replace(/\s+/g, "-").toLowerCase()}.png`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        toast("Card image saved ✓");
+      }
+    } catch (e) {
+      nativeShare(); // last resort
+    } finally {
+      setSharing(false);
     }
   }
 
@@ -195,6 +225,7 @@ export function ShareCard({ cafe, onClose }) {
         {/* Card preview */}
         <div className="no-scrollbar flex-1 overflow-y-auto overscroll-contain px-5 py-4">
           <div
+            ref={cardRef}
             className="relative mx-auto w-full max-w-[300px] overflow-hidden rounded-xl3 border border-line shadow-float"
             style={{ aspectRatio: ratio, background: "#FFFBF4" }}
           >
@@ -208,8 +239,8 @@ export function ShareCard({ cafe, onClose }) {
           <GhostButton className="flex-1 !py-3" onClick={copy}>
             <Icon name="share" size={16} /> Copy link
           </GhostButton>
-          <PrimaryButton className="flex-1 !py-3" onClick={nativeShare}>
-            Share
+          <PrimaryButton className="flex-1 !py-3" onClick={shareImage} disabled={sharing}>
+            {sharing ? "Preparing…" : "Share image"}
           </PrimaryButton>
         </div>
         {booking && (

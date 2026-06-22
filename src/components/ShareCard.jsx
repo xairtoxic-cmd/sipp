@@ -10,6 +10,16 @@ import { CafeImage, PrimaryButton, GhostButton, useBodyScrollLock } from "./UI";
 // ---- Canvas share-image renderer (reliable: no DOM screenshot) ----
 const CREAM = "#F7F0E6", IVORY = "#FFF9F0", ESPRESSO = "#2B2118", GOLD = "#B9935A", BROWN = "#6b5a47";
 
+// Ask the photo host for a larger render so the exported card stays crisp.
+function hiRes(src) {
+  if (!src) return src;
+  try {
+    if (src.includes("images.unsplash.com")) {
+      return src.replace(/([?&])w=\d+/, "$1w=1600").replace(/([?&])q=\d+/, "$1q=85");
+    }
+  } catch {}
+  return src;
+}
 function loadImage(src) {
   return new Promise((resolve) => {
     if (!src) return resolve(null);
@@ -67,10 +77,13 @@ function pill(ctx, text, x, y, h, font, bg, fg) {
 async function renderShareBlob({ cafe, fmt, tpl, scoreText, serifFam, sansFam }) {
   const W = 1080;
   const H = fmt === "story" ? 1920 : fmt === "post" ? 1350 : 1080;
+  const SCALE = 2; // supersample → crisp text + photos
   const canvas = document.createElement("canvas");
-  canvas.width = W; canvas.height = H;
+  canvas.width = W * SCALE; canvas.height = H * SCALE;
   const ctx = canvas.getContext("2d");
-  const img = await loadImage(cafe.images && cafe.images[0]);
+  ctx.scale(SCALE, SCALE);
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+  const img = await loadImage(hiRes(cafe.images && cafe.images[0]));
   const P = Math.round(W * 0.07);
   const meta = `${categoryLabel(cafe)} · ${cafe.area}`;
   const tags = (cafe.tags || []).slice(0, 3);
@@ -141,7 +154,7 @@ async function renderShareBlob({ cafe, fmt, tpl, scoreText, serifFam, sansFam })
   }
   ctx.textBaseline = "alphabetic"; ctx.textAlign = "left";
   ctx.fillStyle = "rgba(247,240,230,0.9)"; ctx.font = sans(400, W * 0.033);
-  cy -= W * 0.033; ctx.fillText(meta, P, cy); cy -= W * 0.02;
+  cy -= W * 0.033; ctx.fillText(meta, P, cy); cy -= W * 0.055;
   const scoreFont = serif(700, scoreText.length > 3 ? W * 0.058 : W * 0.11);
   const nameFont = serif(600, W * 0.086);
   ctx.font = scoreFont; const scoreW = ctx.measureText(scoreText).width;

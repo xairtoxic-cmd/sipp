@@ -241,7 +241,7 @@ function CafePreview({ cafe, compact = false }) {
       <div className="p-3.5">
         <div className="flex items-baseline justify-between gap-2">
           <h4 className="serif text-xl leading-tight text-espresso">{cafe.name}</h4>
-          <span className="serif text-base text-gold">Sipp {cafe.sippScore.toFixed(1)}</span>
+          <span className="shrink-0 serif text-base text-gold">{cafe.sippScore == null ? <span className="text-xs text-brown/45">No score yet</span> : `Sipp ${cafe.sippScore.toFixed(1)}`}</span>
         </div>
         <p className="mt-0.5 flex items-center gap-1 text-xs text-brown/70">
           <Icon name="pin" size={12} /> {cafe.area}

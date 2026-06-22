@@ -46,7 +46,7 @@ function ClassicCard({ cafe, top, reviewer, savedBy, fmt }) {
         <div>
           <div className="flex items-end justify-between gap-2">
             <h2 className="serif text-3xl leading-none">{cafe.name}</h2>
-            <span className="serif text-4xl font-bold leading-none">{cafe.sippScore.toFixed(1)}</span>
+            <span className="serif text-4xl font-bold leading-none">{cafe.sippScore == null ? "New" : cafe.sippScore.toFixed(1)}</span>
           </div>
           <p className="mt-1 text-xs text-cream/85">{categoryLabel(cafe)} · {cafe.area}</p>
           <Tags cafe={cafe} className="mt-2" />
@@ -79,7 +79,7 @@ function EditorialCard({ cafe, top, reviewer, fmt }) {
       <div className="mt-3">
         <div className="flex items-end justify-between gap-2">
           <h2 className="serif text-3xl leading-none text-espresso">{cafe.name}</h2>
-          <span className="serif text-3xl font-bold leading-none text-gold">{cafe.sippScore.toFixed(1)}</span>
+          <span className="serif text-3xl font-bold leading-none text-gold">{cafe.sippScore == null ? "New" : cafe.sippScore.toFixed(1)}</span>
         </div>
         <p className="mt-0.5 text-xs text-brown/70">{categoryLabel(cafe)} · {cafe.area}</p>
         <div className="mt-2 flex flex-wrap gap-1">
@@ -106,7 +106,7 @@ function BoldCard({ cafe, top, reviewer, fmt }) {
       </div>
       <div>
         <p className="text-[11px] uppercase tracking-widest text-gold">Sipp Score</p>
-        <p className="serif text-[5rem] font-bold leading-[0.85] text-gold">{cafe.sippScore.toFixed(1)}</p>
+        <p className="serif font-bold leading-[0.85] text-gold" style={{ fontSize: cafe.sippScore == null ? "2.4rem" : "5rem" }}>{cafe.sippScore == null ? "New" : cafe.sippScore.toFixed(1)}</p>
         <h2 className="mt-3 serif text-4xl leading-none">{cafe.name}</h2>
         <p className="mt-1 text-sm text-cream/70">{categoryLabel(cafe)} · {cafe.area}</p>
         <div className="mt-2 flex flex-wrap gap-1">

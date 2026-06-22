@@ -229,7 +229,31 @@ export function StoreProvider({ children }) {
   }, []);
 
   // ---------- derived ----------
-  const cafes = useMemo(() => (placeRows.length ? placeRows.map(placeFromRow) : SEED_PLACES), [placeRows]);
+  // Sipp Score = the average of real member reviews for a place. A place with no
+  // reviews yet has no score (null) — never a sample/seed number.
+  const scoreByCafe = useMemo(() => {
+    const agg = {};
+    for (const r of allReviews) {
+      const id = r.place_id;
+      const v = Number(r.overall);
+      if (!id || !(v > 0)) continue;
+      const a = (agg[id] = agg[id] || { sum: 0, n: 0 });
+      a.sum += v;
+      a.n += 1;
+    }
+    const m = {};
+    for (const id in agg) m[id] = { score: Math.round((agg[id].sum / agg[id].n) * 10) / 10, count: agg[id].n };
+    return m;
+  }, [allReviews]);
+
+  const cafes = useMemo(() => {
+    const base = placeRows.length ? placeRows.map(placeFromRow) : SEED_PLACES;
+    return base.map((c) => {
+      const agg = scoreByCafe[c.id];
+      // Real review average, or null when nobody has reviewed it yet.
+      return { ...c, reviewCount: agg ? agg.count : 0, sippScore: agg ? agg.score : null, communityScore: agg ? agg.score : null };
+    });
+  }, [placeRows, scoreByCafe]);
   const cafesById = useMemo(() => {
     const m = {};
     SEED_PLACES.forEach((c) => (m[c.id] = c)); // fallback so older seed-id reviews still resolve

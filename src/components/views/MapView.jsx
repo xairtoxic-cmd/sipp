@@ -48,7 +48,7 @@ function esc(s) {
 
 // Hover preview card shown on desktop when the cursor is over a pin.
 function tooltipHtml(c) {
-  const score = c.sippScore ?? c.communityScore ?? 0;
+  const scoreLabel = c.sippScore == null ? "No Sipp score yet" : `★ Sipp ${c.sippScore.toFixed(1)}`;
   const photo =
     c.images && c.images[0]
       ? `<div class="sipp-tip-photo"><img src="${esc(c.images[0])}" alt="" loading="lazy"/></div>`
@@ -58,7 +58,7 @@ function tooltipHtml(c) {
     `<div class="sipp-tip-body">` +
     `<div class="sipp-tip-name">${esc(c.name)}</div>` +
     `<div class="sipp-tip-meta">${esc(categoryLabel(c))}${c.area ? " · " + esc(c.area) : ""}</div>` +
-    `<div class="sipp-tip-score">★ Sipp ${score.toFixed(1)}</div>` +
+    `<div class="sipp-tip-score">${scoreLabel}</div>` +
     `</div>`
   );
 }
@@ -82,8 +82,8 @@ function pinSvg(color, glyph) {
 function buildIcon(L, c, isSel, topCutoff) {
   const fine = isFineDining(c);
   const star = c.hasSippStar;
-  const score = c.sippScore ?? c.communityScore ?? 0;
-  const glow = score >= topCutoff;
+  const score = c.sippScore ?? 0;
+  const glow = c.sippScore != null && topCutoff > 0 && score >= topCutoff;
   const big = isSel || star;
   const s = big ? 44 : 34;
   const color = isSel ? "#C2674A" : fine ? "#2B2118" : "#C9A227";
@@ -119,7 +119,7 @@ function maxPinsForZoom(z) {
 // Ranking used to decide which pins survive when zoomed out: rating first,
 // with a gentle boost for places that have lots of reviews.
 function placeQuality(c) {
-  const score = c.sippScore ?? c.communityScore ?? 0;
+  const score = c.sippScore ?? 0;
   const reviews = c.reviews || 0;
   return score + Math.min(reviews / 250, 1.2);
 }
@@ -165,8 +165,8 @@ export default function MapView() {
   const topCutoff = useMemo(() => {
     const pool = areaBounds ? cafes : cityCafes;
     const scores = pool
-      .map((c) => c.sippScore ?? c.communityScore ?? 0)
-      .filter((s) => s > 0)
+      .map((c) => c.sippScore)
+      .filter((s) => s != null && s > 0)
       .sort((a, b) => b - a);
     if (!scores.length) return Infinity;
     const k = Math.max(1, Math.ceil(scores.length * 0.1));
@@ -439,7 +439,7 @@ export default function MapView() {
                   </span>
                   <span className="text-brown/50">({selected.reviews})</span>
                   <span className="text-brown/40">·</span>
-                  <span className="text-brown/80">Sipp {selected.sippScore.toFixed(1)}</span>
+                  <span className="text-brown/80">{selected.sippScore == null ? "No Sipp score yet" : `Sipp ${selected.sippScore.toFixed(1)}`}</span>
                 </p>
                 <div className="mt-2 flex flex-wrap gap-1">
                   {selected.tags.slice(0, 3).map((t) => (

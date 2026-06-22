@@ -51,7 +51,11 @@ export function LargeCafeCard({ cafe }) {
         </div>
         <div className="mt-3 flex items-end justify-between gap-3">
           <p className="text-xs text-gold">{cafe.activity}</p>
-          <span className="serif text-3xl font-bold leading-none text-espresso">{cafe.sippScore.toFixed(1)}</span>
+          {cafe.sippScore == null ? (
+            <span className="text-[11px] font-medium leading-tight text-brown/45">No Sipp<br />score yet</span>
+          ) : (
+            <span className="serif text-3xl font-bold leading-none text-espresso">{cafe.sippScore.toFixed(1)}</span>
+          )}
         </div>
       </div>
     </button>

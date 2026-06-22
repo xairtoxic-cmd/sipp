@@ -9,7 +9,7 @@ import { Icon } from "../Icons";
 import { placeMatches } from "@/lib/seed";
 import { SearchByArea, SearchByCategory } from "./BrowseSections";
 
-const bySipp = (a, b) => b.sippScore - a.sippScore;
+const bySipp = (a, b) => (b.sippScore ?? 0) - (a.sippScore ?? 0);
 const hasAny = (c, keys) => keys.some((k) => c.tags.includes(k) || (c.features || []).includes(k));
 
 const VIEW_AREAS = [
@@ -89,7 +89,7 @@ export default function Explore() {
   const cafePlaces = all.filter((c) => c.category === "cafe");
   const fine = all.filter((c) => c.category === "fine_dining");
   const trending = [...all]
-    .sort((a, b) => (b.reviews || 0) - (a.reviews || 0) || b.sippScore - a.sippScore)
+    .sort((a, b) => (b.reviews || 0) - (a.reviews || 0) || (b.sippScore ?? 0) - (a.sippScore ?? 0))
     .slice(0, 10);
   const fineDining = padTo([...fine].sort(bySipp), 8);
   const dateNight = padTo([...all].filter((c) => hasAny(c, ["Date Night", "Date Spot", "Romantic"])).sort(bySipp), 8);

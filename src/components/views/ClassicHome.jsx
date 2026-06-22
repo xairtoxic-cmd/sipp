@@ -96,7 +96,7 @@ export default function ClassicHome() {
   }, [cityCafes, cats, hour, recommendScore]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const nearby = useMemo(
-    () => cityCafes.filter(matchCats).sort((a, b) => b.sippScore - a.sippScore).slice(0, 10),
+    () => cityCafes.filter(matchCats).sort((a, b) => (b.sippScore ?? 0) - (a.sippScore ?? 0)).slice(0, 10),
     [cats, cityCafes] // eslint-disable-line react-hooks/exhaustive-deps
   );
   const trending = useMemo(

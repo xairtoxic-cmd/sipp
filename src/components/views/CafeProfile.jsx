@@ -201,8 +201,14 @@ export default function CafeProfile({ cafeId }) {
               </p>
             </div>
             <div className="rounded-2xl border border-line bg-ivory px-3 py-2 text-center">
-              <p className="serif text-2xl leading-none text-gold">{cafe.sippScore.toFixed(1)}</p>
-              <p className="text-[9px] uppercase tracking-wide text-brown/60">Sipp Score</p>
+              {cafe.sippScore == null ? (
+                <p className="max-w-[64px] text-[11px] font-medium leading-tight text-brown/55">No Sipp score yet</p>
+              ) : (
+                <>
+                  <p className="serif text-2xl leading-none text-gold">{cafe.sippScore.toFixed(1)}</p>
+                  <p className="text-[9px] uppercase tracking-wide text-brown/60">Sipp Score</p>
+                </>
+              )}
             </div>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
@@ -299,14 +305,20 @@ export default function CafeProfile({ cafeId }) {
         <div className="space-y-3 rounded-xl2 border border-line bg-card p-4 shadow-card">
           <div className="flex items-center justify-between">
             <span className="text-sm text-brown/80">Community Score</span>
-            <span className="serif text-2xl leading-none text-espresso">{(cafe.communityScore ?? cafe.sippScore ?? 0).toFixed(1)}</span>
+            {cafe.sippScore == null ? (
+              <span className="text-sm text-brown/50">No Sipp score yet</span>
+            ) : (
+              <span className="serif text-2xl leading-none text-espresso">
+                {cafe.sippScore.toFixed(1)} <span className="text-xs font-normal text-brown/50">· {cafe.reviewCount} {cafe.reviewCount === 1 ? "review" : "reviews"}</span>
+              </span>
+            )}
           </div>
           {cafe.isSippRated && (
             <div className="flex items-center justify-between border-t border-line pt-3">
               <span className="inline-flex items-center gap-2 text-sm text-brown/80">
                 <span className="rounded-full border border-gold/50 bg-gold/10 px-2 py-0.5 text-[10px] font-medium text-gold">Sipp Rated</span>
               </span>
-              <span className="serif text-2xl leading-none text-gold">{(cafe.sippRatedScore ?? cafe.communityScore ?? cafe.sippScore ?? 0).toFixed(1)}</span>
+              <span className="serif text-2xl leading-none text-gold">{(cafe.sippRatedScore ?? cafe.sippScore ?? 0).toFixed(1)}</span>
             </div>
           )}
           {cafe.hasSippStar && (
@@ -337,21 +349,25 @@ export default function CafeProfile({ cafeId }) {
           )}
         </div>
 
-        {/* Personality score */}
-        <h3 className="mb-3 mt-6 serif text-2xl text-espresso">
-          Personality <span className="gold-italic">score</span>
-        </h3>
-        <div className="space-y-2.5 rounded-xl2 border border-line bg-card p-4 shadow-card">
-          {Object.entries(personality).map(([k, v]) => (
-            <div key={k} className="flex items-center gap-3">
-              <span className="w-28 shrink-0 text-sm text-brown/80">{k}</span>
-              <span className="h-2 flex-1 overflow-hidden rounded-full bg-beige/60">
-                <span className="block h-full rounded-full bg-gold" style={{ width: `${(v / 10) * 100}%` }} />
-              </span>
-              <span className="w-9 shrink-0 text-right serif text-lg leading-none text-espresso">{v.toFixed(1)}</span>
+        {/* Personality score — only meaningful once the place has been reviewed */}
+        {cafe.sippScore != null && (
+          <>
+            <h3 className="mb-3 mt-6 serif text-2xl text-espresso">
+              Personality <span className="gold-italic">score</span>
+            </h3>
+            <div className="space-y-2.5 rounded-xl2 border border-line bg-card p-4 shadow-card">
+              {Object.entries(personality).map(([k, v]) => (
+                <div key={k} className="flex items-center gap-3">
+                  <span className="w-28 shrink-0 text-sm text-brown/80">{k}</span>
+                  <span className="h-2 flex-1 overflow-hidden rounded-full bg-beige/60">
+                    <span className="block h-full rounded-full bg-gold" style={{ width: `${(v / 10) * 100}%` }} />
+                  </span>
+                  <span className="w-9 shrink-0 text-right serif text-lg leading-none text-espresso">{v.toFixed(1)}</span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </>
+        )}
 
         {/* Best time + Crowd */}
         <div className="mt-4 grid grid-cols-2 gap-3">

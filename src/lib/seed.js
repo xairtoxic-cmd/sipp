@@ -634,10 +634,15 @@ export const TASTE_CHIPS = [
   "Waterfront", "Luxury", "Hidden Gems", "Study Spots", "Business Dinner", "Aesthetic Spots", "Quiet Places", "Outdoor Seating",
 ];
 
+// Label + formatter for the Sipp Score (null = not enough reviews yet).
+export const NO_SCORE_LABEL = "No Sipp score yet";
+export const fmtScore = (s) => (s == null ? null : Number(s).toFixed(1));
+
 // "Personality score" — adapts to the place category.
 export function personalityFor(c) {
   const h = hashNum(c.id);
-  const j = (n) => Math.max(7.6, Math.min(9.8, +(c.sippScore + (((h >> (n * 3)) % 7) - 3) * 0.18).toFixed(1)));
+  const base = c.sippScore ?? 8.4; // guard: only shown when the place actually has a score
+  const j = (n) => Math.max(7.6, Math.min(9.8, +(base + (((h >> (n * 3)) % 7) - 3) * 0.18).toFixed(1)));
   if (c.category === "fine_dining") {
     return { Food: j(0), Service: j(1), Ambience: j(2), Presentation: j(3), Value: j(4), "Date Night": j(5) };
   }

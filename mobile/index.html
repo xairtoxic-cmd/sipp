@@ -9,16 +9,41 @@
       font-family: -apple-system, Georgia, serif; -webkit-font-smoothing: antialiased; }
     .wrap { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; }
     .mark { font-size: 64px; font-weight: 600; letter-spacing: 0.5px; }
-    .msg { margin-top: 14px; font-family: -apple-system, system-ui, sans-serif; font-size: 15px; color: rgba(247,240,230,0.72); }
+    .msg { margin-top: 14px; font-family: -apple-system, system-ui, sans-serif; font-size: 15px; color: rgba(247,240,230,0.72); max-width: 280px; line-height: 1.5; }
     .btn { margin-top: 22px; background: #B9935A; color: #2B2118; border: none; border-radius: 999px;
       padding: 13px 26px; font-family: -apple-system, system-ui, sans-serif; font-size: 15px; font-weight: 600; }
+    .dots { margin-top: 18px; font-family: -apple-system, system-ui, sans-serif; font-size: 13px; color: rgba(247,240,230,0.45); }
+    #offline { display: none; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="mark">sipp</div>
-    <div class="msg">You're offline. Reconnect to keep discovering cafés &amp; fine dining.</div>
-    <button class="btn" onclick="location.href='https://joinsipp.com'">Try again</button>
+    <div id="loading"><div class="dots">Loading…</div></div>
+    <div id="offline">
+      <div class="msg">You're offline. Reconnect to keep discovering cafés &amp; fine dining.</div>
+      <button class="btn" onclick="go()">Try again</button>
+    </div>
   </div>
+  <script>
+    var SITE = "https://joinsipp.com";
+    function go() {
+      document.getElementById("offline").style.display = "none";
+      document.getElementById("loading").style.display = "block";
+      // Reachability check, then load the live app.
+      fetch(SITE + "/manifest.json", { method: "HEAD", cache: "no-store" })
+        .then(function () { location.replace(SITE); })
+        .catch(showOffline);
+    }
+    function showOffline() {
+      document.getElementById("loading").style.display = "none";
+      document.getElementById("offline").style.display = "block";
+    }
+    window.addEventListener("online", go);
+    // On launch: if we appear online, load the site immediately.
+    if (navigator.onLine === false) showOffline(); else go();
+    // Safety retry in case of a slow first connection.
+    setTimeout(function () { if (document.getElementById("loading").style.display !== "none") go(); }, 4000);
+  </script>
 </body>
 </html>

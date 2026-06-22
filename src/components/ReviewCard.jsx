@@ -100,7 +100,7 @@ export function FeedPost({ review }) {
         <button onClick={() => setCommentReviewId(review.id)} className="flex items-center gap-1.5 text-sm transition active:scale-90">
           <Icon name="chat" size={23} />
         </button>
-        <button onClick={() => openShare(cafe.id)} className="flex items-center gap-1.5 text-sm transition active:scale-90">
+        <button onClick={() => openShare(cafe.id, review.photo)} className="flex items-center gap-1.5 text-sm transition active:scale-90">
           <Icon name="send" size={22} />
         </button>
         <button onClick={() => toggleSave(cafe.id)} className={`ml-auto transition active:scale-90 ${saved ? "text-gold" : ""}`}>
@@ -216,7 +216,7 @@ function ReviewActions({ review }) {
       <Item icon="heart" label={liked ? "Liked" : "Like"} active={liked} fill onClick={() => toggleReviewLike(review.id)} />
       <Item icon="chat" label={commentCount ? `Comment · ${commentCount}` : "Comment"} onClick={() => setCommentReviewId(review.id)} />
       <Item icon="bookmark" label={saved ? "Saved" : "Save"} active={saved} fill onClick={() => toggleSave(review.cafeId)} />
-      <Item icon="send" label="Share" onClick={() => openShare(review.cafeId)} />
+      <Item icon="send" label="Share" onClick={() => openShare(review.cafeId, review.photo)} />
     </div>
   );
 }
@@ -393,7 +393,7 @@ export function PublicReviewCard({ review }) {
         <button onClick={() => toggleSave(cafe.id)} className={`flex items-center gap-1.5 text-xs transition active:scale-95 ${saved ? "text-gold" : "text-brown/70"}`}>
           <Icon name="bookmark" size={16} fill={saved ? "currentColor" : "none"} /> {saved ? "Saved" : "Save"}
         </button>
-        <button onClick={() => openShare(cafe.id)} className="flex items-center gap-1.5 text-xs text-brown/70 transition active:scale-95">
+        <button onClick={() => openShare(cafe.id, review.photo)} className="flex items-center gap-1.5 text-xs text-brown/70 transition active:scale-95">
           <Icon name="share" size={16} /> Share
         </button>
       </div>

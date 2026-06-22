@@ -34,7 +34,7 @@ function PalmCorner() {
 }
 
 export default function Home() {
-  const { tab, openCafeId, openListId, openUserId, shareCafeId, closeShare, cafeById } = useStore();
+  const { tab, openCafeId, openListId, openUserId, shareCafeId, sharePhoto, closeShare, cafeById } = useStore();
   const { hydrated, isAuthed, needsOnboarding } = useAuth();
 
   const isMap = tab === "map";
@@ -74,7 +74,7 @@ export default function Home() {
         {openCafeId && <CafeProfile key={openCafeId} cafeId={openCafeId} />}
         {openListId && <ListDetail listId={openListId} />}
         {openUserId && <UserProfile userId={openUserId} />}
-        {shareCafeId && <ShareCard cafe={cafeById(shareCafeId)} onClose={closeShare} />}
+        {shareCafeId && <ShareCard cafe={cafeById(shareCafeId)} photo={sharePhoto} onClose={closeShare} />}
         <CommentSheet />
 
         <BottomNav />

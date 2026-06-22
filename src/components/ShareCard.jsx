@@ -234,7 +234,7 @@ function Tags({ cafe, className = "" }) {
 function ClassicCard({ cafe, top, reviewer, savedBy, fmt }) {
   return (
     <>
-      <CafeImage src={cafe.images[0]} alt={cafe.name} seed={cafe.id} query={`${cafe.name}, ${cafe.area}`} rounded="rounded-none" className="absolute inset-0 h-full w-full" />
+      <CafeImage src={cafe.images[0]} alt={cafe.name} seed={cafe.id} query={cafe.customPhoto ? undefined : `${cafe.name}, ${cafe.area}`} rounded="rounded-none" className="absolute inset-0 h-full w-full" />
       <div className="absolute inset-0 bg-gradient-to-t from-espresso/85 via-espresso/25 to-espresso/15" />
       <div className="absolute inset-0 flex flex-col justify-between p-4 text-cream">
         <div className="serif text-2xl lowercase leading-none">sipp</div>
@@ -269,7 +269,7 @@ function EditorialCard({ cafe, top, reviewer, fmt }) {
         <span className="text-[10px] uppercase tracking-widest text-brown/60">Dubai café</span>
       </div>
       <div className="mt-3 flex-1 overflow-hidden rounded-2xl">
-        <CafeImage src={cafe.images[0]} alt={cafe.name} seed={cafe.id} query={`${cafe.name}, ${cafe.area}`} rounded="rounded-2xl" className="h-full w-full" />
+        <CafeImage src={cafe.images[0]} alt={cafe.name} seed={cafe.id} query={cafe.customPhoto ? undefined : `${cafe.name}, ${cafe.area}`} rounded="rounded-2xl" className="h-full w-full" />
       </div>
       <div className="mt-3">
         <div className="flex items-end justify-between gap-2">
@@ -296,7 +296,7 @@ function BoldCard({ cafe, top, reviewer, fmt }) {
       <div className="flex items-center justify-between">
         <span className="serif text-2xl lowercase leading-none">sipp</span>
         <span className="h-12 w-12 overflow-hidden rounded-full ring-2 ring-gold">
-          <CafeImage src={cafe.images[0]} alt={cafe.name} seed={cafe.id} query={`${cafe.name}, ${cafe.area}`} rounded="rounded-full" className="h-full w-full" />
+          <CafeImage src={cafe.images[0]} alt={cafe.name} seed={cafe.id} query={cafe.customPhoto ? undefined : `${cafe.name}, ${cafe.area}`} rounded="rounded-full" className="h-full w-full" />
         </span>
       </div>
       <div>
@@ -317,10 +317,13 @@ function BoldCard({ cafe, top, reviewer, fmt }) {
   );
 }
 
-export function ShareCard({ cafe, onClose }) {
+export function ShareCard({ cafe, photo, onClose }) {
   useBodyScrollLock();
   const { toast, reviews, getProfile, reserve } = useStore();
   const booking = getBestBookingMethod(cafe);
+  // When sharing a specific post, use the photo the member uploaded; otherwise
+  // fall back to the place's photo.
+  const cardCafe = photo ? { ...cafe, images: [photo], customPhoto: true } : cafe;
   const [fmt, setFmt] = useState("story");
   const [tpl, setTpl] = useState("classic");
   const [sharing, setSharing] = useState(false);
@@ -356,7 +359,7 @@ export function ShareCard({ cafe, onClose }) {
       const scoreText = cafe.sippScore == null ? "New" : cafe.sippScore.toFixed(1);
       let site = "joinsipp.com";
       try { site = new URL(link).host.replace(/^www\./, ""); } catch {}
-      const blob = await renderShareBlob({ cafe, fmt, tpl, scoreText, serifFam, sansFam, top, reviewer, site });
+      const blob = await renderShareBlob({ cafe: cardCafe, fmt, tpl, scoreText, serifFam, sansFam, top, reviewer, site });
       if (!blob) throw new Error("render failed");
       const file = new File([blob], `sipp-${cafe.id}.png`, { type: "image/png" });
       const title = `${cafe.name} on Sipp`;
@@ -387,7 +390,7 @@ export function ShareCard({ cafe, onClose }) {
     }
   }
 
-  const cardProps = { cafe, top, reviewer, savedBy, fmt };
+  const cardProps = { cafe: cardCafe, top, reviewer, savedBy, fmt };
 
   return (
     <div className="fixed inset-0 z-[1600] flex items-end justify-center bg-espresso/40 backdrop-blur-sm" onClick={onClose}>

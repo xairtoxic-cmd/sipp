@@ -148,6 +148,7 @@ export function StoreProvider({ children }) {
   const [openUserId, setOpenUserId] = useState(null);
   const [commentReviewId, setCommentReviewId] = useState(null);
   const [shareCafeId, setShareCafeId] = useState(null);
+  const [sharePhoto, setSharePhoto] = useState(null);
   const [prefillRankId, setPrefillRankId] = useState(null);
   const [exploreQuery, setExploreQuery] = useState(null); // { kind:'area'|'category', value, label }
   const [userLoc, setUserLoc] = useState(null); // { lat, lng } once geolocation granted
@@ -654,8 +655,9 @@ export function StoreProvider({ children }) {
   const closeCafe = () => setOpenCafeId(null);
   const openUser = (id) => setOpenUserId(id);
   const closeUser = () => setOpenUserId(null);
-  const openShare = (id) => {
+  const openShare = (id, photo) => {
     track(id, "share_place");
+    setSharePhoto(photo || null); // post's uploaded photo, if any
     setShareCafeId(id);
   };
   function reserve(place) {
@@ -672,7 +674,7 @@ export function StoreProvider({ children }) {
     track(place.id, m.trackType);
     if (typeof window !== "undefined") window.open(m.url, "_blank", "noopener");
   }
-  const closeShare = () => setShareCafeId(null);
+  const closeShare = () => { setShareCafeId(null); setSharePhoto(null); };
   function goRank(id) {
     setPrefillRankId(id || null);
     setOpenCafeId(null);
@@ -754,6 +756,7 @@ export function StoreProvider({ children }) {
     commentReviewId,
     setCommentReviewId,
     shareCafeId,
+    sharePhoto,
     openShare,
     closeShare,
     reserve,

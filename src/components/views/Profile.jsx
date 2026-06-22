@@ -38,7 +38,7 @@ function NewListModal({ onClose }) {
   return (
     <div className="fixed inset-0 z-[1600] flex items-end justify-center bg-espresso/30 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="w-full max-w-[460px] animate-sheetUp rounded-t-xl3 border border-line bg-card p-5 pb-10 shadow-float"
+        className="no-scrollbar max-h-[88dvh] w-full max-w-[460px] animate-sheetUp overflow-y-auto rounded-t-xl3 border border-line bg-card p-5 pb-28 shadow-float"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-beige" />
@@ -347,7 +347,7 @@ function EditProfileModal({ current, onSave, onClose }) {
         <AvatarCropper file={cropFile} busy={uploading} onCancel={() => setCropFile(null)} onDone={handleCropped} />
       )}
       <div
-        className="w-full max-w-[460px] animate-sheetUp rounded-t-xl3 border border-line bg-card p-5 pb-10 shadow-float"
+        className="no-scrollbar max-h-[88dvh] w-full max-w-[460px] animate-sheetUp overflow-y-auto rounded-t-xl3 border border-line bg-card p-5 pb-28 shadow-float"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-beige" />

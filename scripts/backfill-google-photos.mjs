@@ -34,6 +34,18 @@ const PER_PLACE = 4;
 const COST = { details: 0.017, search: 0.032, photo: 0.007 };
 let spent = 0, calls = 0;
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// Global rate gate for SearchText — stays under Google's per-minute quota even
+// with concurrent workers. ~130ms gap ≈ 460 req/min (default cap is ~600/min).
+const SEARCH_GAP = 140;
+let nextSearchAt = 0;
+async function searchGate() {
+  const now = Date.now();
+  const wait = Math.max(0, nextSearchAt - now);
+  nextSearchAt = Math.max(now, nextSearchAt) + SEARCH_GAP;
+  if (wait) await sleep(wait);
+}
+
 async function placeDetailsPhotos(placeId) {
   const r = await fetch(`https://places.googleapis.com/v1/places/${placeId}?fields=photos&key=${GKEY}`);
   calls++; spent += COST.details;
@@ -45,15 +57,20 @@ async function placeDetailsPhotos(placeId) {
 async function textSearchPhotos(place) {
   const body = { textQuery: [place.name, place.area, place.city, "UAE"].filter(Boolean).join(", "), maxResultCount: 1, regionCode: "AE" };
   if (place.lat && place.lng) body.locationBias = { circle: { center: { latitude: place.lat, longitude: place.lng }, radius: 600 } };
-  const r = await fetch("https://places.googleapis.com/v1/places:searchText", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Goog-Api-Key": GKEY, "X-Goog-FieldMask": "places.photos" },
-    body: JSON.stringify(body),
-  });
-  calls++; spent += COST.search;
-  const j = await r.json();
-  if (j.error) throw new Error(`search ${j.error.status}`);
-  return (j.places?.[0]?.photos || []).slice(0, PER_PLACE).map((p) => p.name);
+  for (let attempt = 0; attempt < 4; attempt++) {
+    await searchGate();
+    const r = await fetch("https://places.googleapis.com/v1/places:searchText", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Goog-Api-Key": GKEY, "X-Goog-FieldMask": "places.photos" },
+      body: JSON.stringify(body),
+    });
+    calls++; spent += COST.search;
+    if (r.status === 429) { await sleep(15000); continue; } // quota cooldown, retry
+    const j = await r.json();
+    if (j.error) throw new Error(`search ${j.error.status}`);
+    return (j.places?.[0]?.photos || []).slice(0, PER_PLACE).map((p) => p.name);
+  }
+  throw new Error("search 429 (gave up)");
 }
 
 async function resolve(photoName) {

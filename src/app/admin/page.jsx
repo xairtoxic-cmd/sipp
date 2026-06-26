@@ -251,6 +251,89 @@ const TYPES = [
   "fine dining restaurant", "tasting menu restaurant", "rooftop restaurant", "waterfront restaurant", "date night restaurant", "premium lounge",
 ];
 
+// Grant/revoke the verified badge for members. Real profiles only.
+function VerifyPanel() {
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState([]);
+  const [busy, setBusy] = useState(null);
+  const [msg, setMsg] = useState("");
+
+  async function search(showVerified = false) {
+    if (!SUPA_URL) return;
+    const term = q.trim();
+    const filter = !term && showVerified
+      ? "verified=eq.true"
+      : term
+        ? `or=(name.ilike.*${encodeURIComponent(term)}*,username.ilike.*${encodeURIComponent(term)}*)`
+        : "verified=eq.true";
+    const res = await fetch(
+      `${SUPA_URL}/rest/v1/profiles?${filter}&select=id,name,username,avatar_url,verified&order=verified.desc&limit=24`,
+      { headers: { apikey: SUPA_ANON, Authorization: `Bearer ${SUPA_ANON}` } }
+    );
+    setResults(await res.json().catch(() => []));
+  }
+  useEffect(() => { search(true); }, []); // show currently-verified members on open
+
+  async function toggle(p) {
+    setBusy(p.id); setMsg("");
+    const res = await fetch("/api/admin/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${await authToken()}` },
+      body: JSON.stringify({ userId: p.id, verified: !p.verified }),
+    });
+    const j = await res.json().catch(() => ({ error: "Request failed" }));
+    setBusy(null);
+    if (j.error) { setMsg(j.error); return; }
+    setResults((rs) => rs.map((r) => (r.id === p.id ? { ...r, verified: !r.verified } : r)));
+  }
+
+  return (
+    <div className="mt-6">
+      <h2 className="serif text-2xl text-espresso">Verified members</h2>
+      <p className="mt-1 text-sm text-brown/70">Search a member and grant the gold verified badge. Only verified members show the badge in the app.</p>
+
+      <div className="mt-4 flex gap-2">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && search()}
+          placeholder="Search by name or @username…"
+          className="flex-1 rounded-xl border border-line bg-ivory px-3 py-2.5 text-sm focus:border-gold focus:outline-none"
+        />
+        <PrimaryButton onClick={() => search()}>Search</PrimaryButton>
+      </div>
+      {msg && <p className="mt-3 rounded-xl border border-gold/40 bg-gold/5 px-4 py-2 text-xs text-brown">{msg}</p>}
+
+      <div className="mt-4 space-y-2">
+        {results.length === 0 && <p className="text-sm text-brown/50">No members found. Search by name or @username.</p>}
+        {results.map((p) => (
+          <div key={p.id} className="flex items-center gap-3 rounded-xl border border-line bg-card px-3 py-2.5 shadow-card">
+            {p.avatar_url
+              ? <img src={p.avatar_url} alt="" className="h-9 w-9 rounded-full object-cover" />
+              : <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gold text-cream">{(p.name || "?").slice(0, 1).toUpperCase()}</div>}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <span className="truncate text-sm font-medium text-espresso">{p.name || "Unnamed"}</span>
+                {p.verified && <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-gold text-[9px] text-cream">★</span>}
+              </div>
+              <span className="text-xs text-brown/50">{p.username ? `@${p.username}` : p.id.slice(0, 8)}</span>
+            </div>
+            <button
+              onClick={() => toggle(p)}
+              disabled={busy === p.id}
+              className={`shrink-0 rounded-full px-4 py-2 text-xs font-medium transition disabled:opacity-50 ${
+                p.verified ? "border border-line bg-card text-brown" : "bg-gold text-cream"
+              }`}
+            >
+              {busy === p.id ? "…" : p.verified ? "Unverify" : "Verify"}
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Admin() {
   const { user, hydrated } = useAuth();
   const isAdmin = (user?.email || "").toLowerCase() === ADMIN_EMAIL;
@@ -323,6 +406,7 @@ export default function Admin() {
     ["users", "Live users"],
     ["posts", "Posts"],
     ["places", "Restaurants & Sipp Star"],
+    ["verified", "Verified"],
     ["import", "Import"],
   ];
 
@@ -358,6 +442,7 @@ export default function Admin() {
       {tab === "places" && <SippRatePanel />}
       {tab === "posts" && <ReviewsPanel />}
       {tab === "users" && <UsersPanel />}
+      {tab === "verified" && <VerifyPanel />}
 
       {tab === "import" && (
       <>

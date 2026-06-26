@@ -18,12 +18,12 @@ function imageFor(list) {
 
 // Sipp categories that map onto placeMatches() labels — one row of six.
 const CATEGORY_DEFS = [
-  { label: "Cafés", match: "Cafés" },
-  { label: "Fine Dining", match: "Fine Dining" },
-  { label: "Brunch", match: "Brunch" },
   { label: "Specialty Coffee", match: "Specialty Coffee" },
+  { label: "Matcha", match: "Matcha" },
+  { label: "Brunch", match: "Brunch" },
+  { label: "Bakery", match: "Bakery" },
   { label: "Dessert", match: "Dessert" },
-  { label: "Rooftop", match: "Rooftop" },
+  { label: "Outdoor Seating", match: "Outdoor Seating" },
 ];
 
 export function SearchByArea() {

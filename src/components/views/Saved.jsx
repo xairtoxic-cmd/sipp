@@ -7,7 +7,7 @@ import { Chip, EmptyState, CafeImage } from "../UI";
 import { SavedRow } from "../CafeCard";
 import { LogoHeader } from "../Chrome";
 
-const TABS = ["All", "Cafés", "Fine Dining", "Lists", "Want to Try", "Been Here"];
+const TABS = ["All", "Lists", "Want to Try", "Been Here"];
 
 export default function Saved() {
   const { saves, lists, getStatus, go, setOpenListId, cafes, cafeById } = useStore();

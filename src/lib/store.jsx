@@ -217,16 +217,29 @@ export function StoreProvider({ children }) {
   }, [isAuthed, meId, loadAll, loadMine]);
 
   // Load the place catalogue from the DB (once); fall back to bundled seed.
+  // Supabase caps each request at ~1000 rows, so page through the table to get
+  // the full catalogue. Order by score with NULLs LAST so unrated imports never
+  // crowd out the curated, scored places.
   useEffect(() => {
     if (!isSupabaseConfigured) return;
-    supabase
-      .from("places")
-      .select("*")
-      .eq("is_active", true)
-      .order("sipp_score", { ascending: false })
-      .then(({ data }) => {
-        if (data) setPlaceRows(data);
-      });
+    let cancelled = false;
+    (async () => {
+      const all = [];
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await supabase
+          .from("places")
+          .select("*")
+          .eq("is_active", true)
+          .order("sipp_score", { ascending: false, nullsFirst: false })
+          .order("id", { ascending: true })
+          .range(from, from + 999);
+        if (error || !data || data.length === 0) break;
+        all.push(...data);
+        if (data.length < 1000) break;
+      }
+      if (!cancelled && all.length) setPlaceRows(all);
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   // ---------- derived ----------

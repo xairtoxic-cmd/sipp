@@ -68,7 +68,7 @@ function placeFromRow(r) {
     googleMapsUrl: r.google_maps_url || "",
     loved: tags.slice(0, 3).map((t) => `Great ${t.toLowerCase()}`),
     blurb: r.blurb || `${r.name} — a ${(tags[0] || "café").toLowerCase()} favourite in ${area}.`,
-    images: r.image_url ? [r.image_url] : [],
+    images: (Array.isArray(r.photos) && r.photos.length ? r.photos : (r.image_url ? [r.image_url] : [])),
     activity: `Loved in ${area}`,
     features: featuresFor({ id: r.id, tags }),
     // Sipp rating layer

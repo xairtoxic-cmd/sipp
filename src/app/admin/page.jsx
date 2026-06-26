@@ -334,6 +334,81 @@ function VerifyPanel() {
   );
 }
 
+// Tastemaker board controls: badges, Sipp Pick, recalc. Real public boards only.
+const BADGE_LABEL = { none: "—", growing: "Growing", trending: "Trending", tastemaker: "Tastemaker", sipp_pick: "Sipp Pick" };
+function BoardsPanel() {
+  const [boards, setBoards] = useState([]);
+  const [busy, setBusy] = useState(null);
+  const [msg, setMsg] = useState("");
+
+  async function load() {
+    if (!SUPA_URL) return;
+    const res = await fetch(
+      `${SUPA_URL}/rest/v1/lists?is_public=eq.true&select=id,title,emoji,badge_status,board_score,saves_count,views_count,place_clicks_count,sipp_pick&order=board_score.desc&limit=60`,
+      { headers: { apikey: SUPA_ANON, Authorization: `Bearer ${SUPA_ANON}` } }
+    );
+    setBoards(await res.json().catch(() => []));
+  }
+  useEffect(() => { load(); }, []);
+
+  async function act(board, action, extra = {}) {
+    setBusy(board ? board.id : action); setMsg("");
+    const res = await fetch("/api/admin/board-badge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${await authToken()}` },
+      body: JSON.stringify({ action, boardId: board?.id, ...extra }),
+    });
+    const j = await res.json().catch(() => ({ error: "Request failed" }));
+    setBusy(null);
+    if (j.error) { setMsg(j.error); return; }
+    if (action === "recalc_all") { setMsg(`Recalculated ${j.count} boards.`); load(); return; }
+    if (j.board) setBoards((bs) => bs.map((b) => (b.id === j.board.id ? { ...b, ...j.board } : b)));
+    else load();
+  }
+
+  return (
+    <div className="mt-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="serif text-2xl text-espresso">Tastemaker boards</h2>
+          <p className="mt-1 text-sm text-brown/70">Badges are earned by real engagement. Mark standouts as Sipp Pick, clear a badge, or recalculate.</p>
+        </div>
+        <GhostButton onClick={() => act(null, "recalc_all")}>{busy === "recalc_all" ? "…" : "Recalculate all"}</GhostButton>
+      </div>
+      {msg && <p className="mt-3 rounded-xl border border-gold/40 bg-gold/5 px-4 py-2 text-xs text-brown">{msg}</p>}
+
+      <div className="mt-4 space-y-2">
+        {boards.length === 0 && <p className="text-sm text-brown/50">No public boards yet.</p>}
+        {boards.map((b) => (
+          <div key={b.id} className="flex items-center gap-3 rounded-xl border border-line bg-card px-3 py-2.5 shadow-card">
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-medium text-espresso">{b.emoji ? `${b.emoji} ` : ""}{b.title || "Untitled"}</div>
+              <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-brown/50">
+                <span className={`rounded-full px-2 py-0.5 ${b.badge_status === "none" ? "bg-ivory text-brown/50" : "bg-gold/15 text-gold"}`}>{BADGE_LABEL[b.badge_status] || b.badge_status}</span>
+                <span>score {b.board_score}</span>
+                <span>· {b.saves_count} saves</span>
+                <span>· {b.views_count} views</span>
+                <span>· {b.place_clicks_count} clicks</span>
+              </div>
+            </div>
+            <button
+              onClick={() => act(b, "set_pick", { sippPick: !b.sipp_pick })}
+              disabled={busy === b.id}
+              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition disabled:opacity-50 ${b.sipp_pick ? "bg-gold text-cream" : "border border-line bg-card text-brown"}`}
+            >
+              {busy === b.id ? "…" : b.sipp_pick ? "Sipp Pick ✓" : "Sipp Pick"}
+            </button>
+            <button onClick={() => act(b, "recalc")} disabled={busy === b.id} className="shrink-0 rounded-full border border-line bg-card px-3 py-1.5 text-xs text-brown disabled:opacity-50">Recalc</button>
+            {b.badge_status !== "none" && (
+              <button onClick={() => act(b, "clear_badge")} disabled={busy === b.id} className="shrink-0 rounded-full border border-line bg-card px-3 py-1.5 text-xs text-brown/60 disabled:opacity-50">Clear</button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Admin() {
   const { user, hydrated } = useAuth();
   const isAdmin = (user?.email || "").toLowerCase() === ADMIN_EMAIL;
@@ -406,6 +481,7 @@ export default function Admin() {
     ["users", "Live users"],
     ["posts", "Posts"],
     ["places", "Restaurants & Sipp Star"],
+    ["boards", "Tastemaker boards"],
     ["verified", "Verified"],
     ["import", "Import"],
   ];
@@ -442,6 +518,7 @@ export default function Admin() {
       {tab === "places" && <SippRatePanel />}
       {tab === "posts" && <ReviewsPanel />}
       {tab === "users" && <UsersPanel />}
+      {tab === "boards" && <BoardsPanel />}
       {tab === "verified" && <VerifyPanel />}
 
       {tab === "import" && (

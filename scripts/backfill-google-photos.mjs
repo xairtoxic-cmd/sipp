@@ -28,6 +28,7 @@ const args = process.argv.slice(2);
 const LIMIT = parseInt(args.find((a) => a.startsWith("--limit="))?.split("=")[1] || "0", 10) || Infinity;
 const CAP = parseFloat(args.find((a) => a.startsWith("--cap="))?.split("=")[1] || "300");
 const UAE_ONLY = args.includes("--uae");
+const COUNTRY = args.find((a) => a.startsWith("--country="))?.split("=")[1] || (UAE_ONLY ? "UAE" : null);
 const PER_PLACE = 4;
 
 // Google Places (New) approximate pricing
@@ -54,8 +55,10 @@ async function placeDetailsPhotos(placeId) {
   return (j.photos || []).slice(0, PER_PLACE).map((p) => p.name);
 }
 
+const REGION = { UAE: "AE", Canada: "CA", "United Kingdom": "GB", Japan: "JP", "Saudi Arabia": "SA", Qatar: "QA", Jordan: "JO" };
 async function textSearchPhotos(place) {
-  const body = { textQuery: [place.name, place.area, place.city, "UAE"].filter(Boolean).join(", "), maxResultCount: 1, regionCode: "AE" };
+  const country = place.country || "UAE";
+  const body = { textQuery: [place.name, place.area, place.city, country].filter(Boolean).join(", "), maxResultCount: 1, regionCode: REGION[country] || undefined };
   if (place.lat && place.lng) body.locationBias = { circle: { center: { latitude: place.lat, longitude: place.lng }, radius: 600 } };
   for (let attempt = 0; attempt < 4; attempt++) {
     await searchGate();
@@ -83,8 +86,8 @@ async function resolve(photoName) {
 async function loadPlaces() {
   const all = [];
   for (let from = 0; ; from += 1000) {
-    let url = `${SB_URL}/rest/v1/places?select=id,name,area,city,lat,lng,google_place_id,photos&order=id`;
-    if (UAE_ONLY) url += "&country=eq.UAE";
+    let url = `${SB_URL}/rest/v1/places?select=id,name,area,city,country,lat,lng,google_place_id,photos&order=id`;
+    if (COUNTRY) url += `&country=eq.${encodeURIComponent(COUNTRY)}`;
     const data = await (await fetch(url, { headers: { ...H, Range: `${from}-${from + 999}` } })).json();
     if (!Array.isArray(data) || !data.length) break;
     all.push(...data);

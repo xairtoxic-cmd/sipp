@@ -11,8 +11,16 @@ async function rest(path) {
 }
 
 export async function generateMetadata({ params }) {
-  const [p] = await rest(`profiles?id=eq.${params.id}&select=name`);
-  return { title: p ? `${p.name} — Sipp` : "Profile — Sipp" };
+  const [p] = await rest(`profiles?id=eq.${params.id}&select=name,avatar_url`);
+  if (!p) return { title: "Profile — Sipp" };
+  const title = `${p.name} — Sipp`;
+  const description = `Follow ${p.name} on Sipp — cafés worth visiting, ranked by people with taste.`;
+  return {
+    title,
+    description,
+    openGraph: { title, description, images: p.avatar_url ? [{ url: p.avatar_url }] : [], siteName: "Sipp" },
+    twitter: { card: "summary_large_image", title, description, images: p.avatar_url ? [p.avatar_url] : [] },
+  };
 }
 
 export default async function ProfileShare({ params }) {

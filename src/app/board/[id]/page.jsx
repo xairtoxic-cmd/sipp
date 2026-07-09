@@ -13,8 +13,24 @@ async function rest(path) {
 }
 
 export async function generateMetadata({ params }) {
-  const [b] = await rest(`lists?id=eq.${params.id}&select=title,emoji`);
-  return { title: b ? `${b.emoji ? b.emoji + " " : ""}${b.title} — Sipp` : "Board — Sipp" };
+  const [b] = await rest(`lists?id=eq.${params.id}&select=title,emoji,cover_image_url,user_id`);
+  if (!b) return { title: "Board — Sipp" };
+  let img = b.cover_image_url;
+  if (!img) {
+    const items = await rest(`list_items?list_id=eq.${params.id}&select=place_id&limit=1`);
+    if (items[0]) {
+      const [p] = await rest(`places?id=eq.${items[0].place_id}&select=image_url`);
+      img = p?.image_url;
+    }
+  }
+  const title = `${b.emoji ? b.emoji + " " : ""}${b.title} — Sipp`;
+  const description = "A board of places worth visiting, on Sipp.";
+  return {
+    title,
+    description,
+    openGraph: { title, description, images: img ? [{ url: img }] : [], siteName: "Sipp" },
+    twitter: { card: "summary_large_image", title, description, images: img ? [img] : [] },
+  };
 }
 
 export default async function BoardShare({ params }) {

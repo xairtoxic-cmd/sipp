@@ -3,8 +3,15 @@
 import pg from "pg";
 import fs from "fs";
 
-const PW = process.env.SUPA_PW;
-if (!PW) { console.error("Need SUPA_PW"); process.exit(1); }
+let PW = process.env.SUPA_PW;
+if (!PW) {
+  // Fall back to .env.local next to this repo (SUPA_PW=...)
+  try {
+    const env = fs.readFileSync(new URL("../.env.local", import.meta.url), "utf8");
+    PW = env.match(/^SUPA_PW=(.+)$/m)?.[1]?.trim();
+  } catch {}
+}
+if (!PW) { console.error("Need SUPA_PW (env var or .env.local)"); process.exit(1); }
 const files = process.argv.slice(2);
 if (!files.length) { console.error("Pass at least one .sql file"); process.exit(1); }
 

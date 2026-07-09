@@ -12,6 +12,14 @@ async function rest(path) {
   } catch { return []; }
 }
 
+// WhatsApp drops og:image over ~600KB — serve a 600px variant of lh3/unsplash URLs.
+function ogSize(u) {
+  if (!u) return u;
+  if (u.includes("googleusercontent.com")) { const i = u.lastIndexOf("="); return i > 0 ? `${u.slice(0, i)}=w600-h600` : u; }
+  if (u.includes("images.unsplash.com")) return `${u.split("?")[0]}?w=600&q=70&auto=format`;
+  return u;
+}
+
 export async function generateMetadata({ params }) {
   const [b] = await rest(`lists?id=eq.${params.id}&select=title,emoji,cover_image_url,user_id`);
   if (!b) return { title: "Board — Sipp" };
@@ -25,10 +33,11 @@ export async function generateMetadata({ params }) {
   }
   const title = `${b.emoji ? b.emoji + " " : ""}${b.title} — Sipp`;
   const description = "A board of places worth visiting, on Sipp.";
+  img = ogSize(img);
   return {
     title,
     description,
-    openGraph: { title, description, images: img ? [{ url: img }] : [], siteName: "Sipp" },
+    openGraph: { title, description, images: img ? [{ url: img, width: 600, height: 600 }] : [], siteName: "Sipp" },
     twitter: { card: "summary_large_image", title, description, images: img ? [img] : [] },
   };
 }

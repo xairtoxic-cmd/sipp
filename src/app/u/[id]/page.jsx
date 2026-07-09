@@ -15,11 +15,12 @@ export async function generateMetadata({ params }) {
   if (!p) return { title: "Profile — Sipp" };
   const title = `${p.name} — Sipp`;
   const description = `Follow ${p.name} on Sipp — cafés worth visiting, ranked by people with taste.`;
+  const img = p.avatar_url || null;
   return {
     title,
     description,
-    openGraph: { title, description, images: p.avatar_url ? [{ url: p.avatar_url }] : [], siteName: "Sipp" },
-    twitter: { card: "summary_large_image", title, description, images: p.avatar_url ? [p.avatar_url] : [] },
+    openGraph: { title, description, images: img ? [{ url: img, width: 400, height: 400 }] : [], siteName: "Sipp" },
+    twitter: { card: "summary_large_image", title, description, images: img ? [img] : [] },
   };
 }
 

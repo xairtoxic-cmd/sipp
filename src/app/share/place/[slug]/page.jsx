@@ -33,13 +33,26 @@ async function getScore(slug) {
   }
 }
 
+// WhatsApp drops og:image over ~600KB — serve a 600px variant of lh3/unsplash URLs.
+function ogSize(u) {
+  if (!u) return u;
+  if (u.includes("googleusercontent.com")) { const i = u.lastIndexOf("="); return i > 0 ? `${u.slice(0, i)}=w600-h600` : u; }
+  if (u.includes("images.unsplash.com")) return `${u.split("?")[0]}?w=600&q=70&auto=format`;
+  return u;
+}
+
 export async function generateMetadata({ params }) {
   const p = await getPlace(params.slug);
   if (!p) return { title: "Sipp" };
   const score = await getScore(params.slug);
+  const title = `${p.name} — ${p.area || p.city} · Sipp`;
+  const description = `${p.name}${score == null ? " — no Sipp score yet" : ` scores ${score.toFixed(1)} on Sipp`}. ${(p.tags || []).join(" · ")}.`;
+  const img = ogSize(p.image_url || (Array.isArray(p.photos) && p.photos[0]) || null);
   return {
-    title: `${p.name} — ${p.area || p.city} · Sipp`,
-    description: `${p.name}${score == null ? " — no Sipp score yet" : ` scores ${score.toFixed(1)} on Sipp`}. ${(p.tags || []).join(" · ")}.`,
+    title,
+    description,
+    openGraph: { title, description, images: img ? [{ url: img, width: 600, height: 600 }] : [], siteName: "Sipp" },
+    twitter: { card: "summary_large_image", title, description, images: img ? [img] : [] },
   };
 }
 

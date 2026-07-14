@@ -48,11 +48,16 @@ async function searchGate() {
 }
 
 async function placeDetailsPhotos(placeId) {
-  const r = await fetch(`https://places.googleapis.com/v1/places/${placeId}?fields=photos&key=${GKEY}`);
-  calls++; spent += COST.details;
-  const j = await r.json();
-  if (j.error) throw new Error(`details ${j.error.status}`);
-  return (j.photos || []).slice(0, PER_PLACE).map((p) => p.name);
+  for (let attempt = 0; attempt < 4; attempt++) {
+    await searchGate(); // same pacing as text search — details has the same per-minute quota
+    const r = await fetch(`https://places.googleapis.com/v1/places/${placeId}?fields=photos&key=${GKEY}`);
+    calls++; spent += COST.details;
+    if (r.status === 429) { await sleep(15000); continue; }
+    const j = await r.json();
+    if (j.error) { if (j.error.code === 429 || j.error.status === "RESOURCE_EXHAUSTED") { await sleep(15000); continue; } throw new Error(`details ${j.error.status}`); }
+    return (j.photos || []).slice(0, PER_PLACE).map((p) => p.name);
+  }
+  throw new Error("details 429 (gave up)");
 }
 
 const REGION = { UAE: "AE", Canada: "CA", "United Kingdom": "GB", Japan: "JP", "Saudi Arabia": "SA", Qatar: "QA", Jordan: "JO" };
@@ -136,7 +141,7 @@ async function processOne(p) {
     }
     const batch = todo.slice(i, i + CONC);
     const res = await Promise.all(batch.map(processOne));
-    for (const r of res) { done++; if (r === "ok") ok++; else if (r === "nophoto") no++; else err++; }
+    for (const r of res) { done++; if (r === "ok") ok++; else if (r === "nophoto") no++; else { err++; if (err <= 3 || err % 200 === 0) console.log(`  ${r}`); } }
     if (done % 80 === 0 || i + CONC >= todo.length) {
       console.log(`  ${done}/${todo.length} | ok=${ok} nophoto=${no} err=${err} | est spend $${spent.toFixed(2)} (${calls} calls)`);
     }
